@@ -1,0 +1,58 @@
+# ---------------------------
+# Python
+# ---------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments (any folder named venv or .venv or env anywhere)
+venv/
+.env/
+env/
+*/venv/
+*/.venv/
+*/env/
+
+# # ---------------------------
+# IDE / Editor
+# ---------------------------
+.vscode/
+.idea/
+
+# ---------------------------
+# OS garbage
+# ---------------------------
+.DS_Store
+Thumbs.db
+
+# ---------------------------
+# Docker
+# ---------------------------
+# Ignore container build artifacts
+**/Dockerfile~
+**/docker-compose.yml~
+*.log
+
+# ---------------------------
+# Project-specific
+# ---------------------------
+# Ignore compiled AI model files
+*.onnx
+*.h5
+*.pb
+*.pt
+
+# Ignore large medical data
+*.dcm
+*.dicom
+*.nii
+*.nii.gz
+
+# Ignore environment files
+.env.local
+*.secret
+*.key
+*.pem
+
