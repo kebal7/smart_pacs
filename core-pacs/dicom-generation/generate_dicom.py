@@ -93,12 +93,14 @@ def create_dicom_from_image(
     ds.ManufacturerModelName = "Synthetic"
     ds.StationName = "PYTHON_CR"
 
-    # Save DICOM
-    filename = f"{patient_id}_{generate_uid()[:8]}.dcm"
-    save_path = os.path.join(output_dir, filename)
-    ds.save_as(save_path, write_like_original=False)
+    # Save if output_dir is given
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        filename = f"{patient_id}_{generate_uid()[:8]}.dcm"
+        save_path = os.path.join(output_dir, filename)
+        ds.save_as(save_path, write_like_original=False)
+        print("Saved DICOM:", save_path)
 
-    print("Saved DICOM:", save_path)
-    print(f"Rows: {ds.Rows}, Columns: {ds.Columns}, BitsAllocated: {ds.BitsAllocated}")
-    print(f"SOPClassUID: {ds.SOPClassUID}, Modality: {ds.Modality}")
+    # Return DICOM dataset object
+    return ds
 
