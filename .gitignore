@@ -1,56 +1,81 @@
-# ---------------------------
-# Python
-# ---------------------------
+####################################
+# Python / FastAPI
+####################################
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
 *.so
 
-# Virtual environments (any folder named venv or .venv or env anywhere)
+# Virtual environments
 venv/
-.env/
+.venv/
 env/
 */venv/
 */.venv/
 */env/
 
-# # ---------------------------
-# IDE / Editor
-# ---------------------------
-.vscode/
-.idea/
+####################################
+# .NET / ASP.NET Core
+####################################
+# Build output
+bin/
+obj/
 
-# ---------------------------
-# OS garbage
-# ---------------------------
+# User-specific files
+*.user
+*.suo
+*.rsuser
+
+# Rider / VS caches
+.idea/
+.vs/
+
+# NuGet
+*.nupkg
+.nuget/
+packages/
+
+####################################
+# ASP.NET Core secrets
+####################################
+appsettings.Development.json
+appsettings.*.Development.json
+secrets.json
+
+####################################
+# IDE / Editors
+####################################
+.vscode/
+
+####################################
+# OS junk
+####################################
 .DS_Store
 Thumbs.db
 
-# ---------------------------
+####################################
 # Docker
-# ---------------------------
-# Ignore container build artifacts
+####################################
+*.log
 **/Dockerfile~
 **/docker-compose.yml~
-*.log
 
-# ---------------------------
-# Project-specific
-# ---------------------------
-# Ignore compiled AI model files
+####################################
+# AI / Medical data
+####################################
 *.onnx
 *.h5
 *.pb
 *.pt
 
-# Ignore large medical data
 *.dcm
 *.dicom
 *.nii
 *.nii.gz
 
-# Ignore environment files
+####################################
+# Env / Secrets
+####################################
+.env
 .env.local
 *.secret
 *.key
