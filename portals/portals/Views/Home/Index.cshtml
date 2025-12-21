@@ -4,5 +4,25 @@
 
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+    @if (User.IsInRole("Radiographer"))
+    {
+        <a class="btn btn-primary" asp-controller="Radiographer" asp-action="Index">
+            Radiographer Portal
+        </a>
+    }
+
+    @if (User.IsInRole("Radiologist"))
+    {
+        <a class="btn btn-success" asp-controller="Radiologist" asp-action="Index">
+            Radiologist Portal
+        </a>
+    }
+
+    @if (User.IsInRole("Clinician"))
+    {
+        <a class="btn btn-warning" asp-controller="Clinician" asp-action="Index">
+            Clinician Portal
+        </a>
+    }
+
 </div>
