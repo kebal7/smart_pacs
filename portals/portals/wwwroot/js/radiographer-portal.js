@@ -13,7 +13,7 @@ const dummyImages = [
 let currentDicom = null;
 let currentImageName = null;
 let currentImagePath = null;
-
+let currentDicomPath = null;
 
 // -------------------------------
 //  Fill Dummy Patient Data
@@ -81,48 +81,44 @@ document.getElementById('acquireBtn').addEventListener('click', () => {
 // -------------------------------
 //  Generate Simulated DICOM
 // -------------------------------
-document.getElementById('uploadDicomBtn').addEventListener('click', () => {
-    if (!currentImageName) {
-        alert("Please acquire or upload an image first!");
+document.getElementById('uploadDicomBtn').addEventListener('click', async () => {
+    const fileInput = document.getElementById('fileInput');
+    if (!fileInput.files[0]) {
+        alert("Please upload an image first!");
         return;
     }
 
-    const patientData = {
-        PatientID: document.getElementById('patientId').value,
-        AccessionNumber: document.getElementById('accessionNo').value || `TEMP-${Date.now()}`,
-        PatientName: document.getElementById('patientName').value,
-        PatientDOB: document.getElementById('patientDOB').value,
-        PatientSex: document.getElementById('patientSex').value,
-        StudyType: document.getElementById('studyType').value,
-        Image: currentImageName,
-        Timestamp: new Date().toISOString()
-    };
+    const formData = new FormData();
+    formData.append("ImageFile", fileInput.files[0]);
+    formData.append("PatientID", document.getElementById('patientId').value);
+    formData.append("PatientName", document.getElementById('patientName').value);
+    formData.append("PatientDOB", document.getElementById('patientDOB').value);
+    formData.append("PatientSex", document.getElementById('patientSex').value);
+    formData.append("StudyType", document.getElementById('studyType').value);
 
-    currentDicom = JSON.stringify(patientData, null, 2);
-    console.log("Generated simulated DICOM:", currentDicom);
+    const response = await fetch('/Radiographer/UploadDicom', {
+        method: 'POST',
+        body: formData
+    });
 
-    alert("DICOM generated (simulated)!");
+    const result = await response.json();
+    currentDicomPath = result.filePath;
+    console.log("Server response:", result);
+    alert("DICOM uploaded and printed to server console!");
 });
 
 
 // -------------------------------
 //  Download Simulated DICOM
 // -------------------------------
-document.getElementById('downloadDicomBtn').addEventListener('click', () => {
-    if (!currentDicom) {
+document.getElementById('downloadDicomBtn').addEventListener('click', async () => {
+    if (!currentDicomPath) {
         alert("No DICOM available for download!");
         return;
     }
 
-    const blob = new Blob([currentDicom], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'simulated_dicom.json';
-    a.click();
-
-    URL.revokeObjectURL(url);
+    // Open download link
+    window.location.href = `/Radiographer/DownloadDicom?filePath=${encodeURIComponent(currentDicomPath)}`;
 });
 
 
