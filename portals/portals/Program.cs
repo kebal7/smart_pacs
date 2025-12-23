@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using portals.Data;
+using Microsoft.AspNetCore.Cors.Infrastructure;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,46 +16,26 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options =>
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
+//allow requests from other port
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowLocalhost5500", policy =>
+        policy.WithOrigins("http://localhost:5500") // HTML origin
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+    );
+});
+
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
-
-    string[] roles = { "Admin", "Radiographer", "Radiologist", "Clinician" };
-
-    foreach (var role in roles)
-    {
-        if (!await roleManager.RoleExistsAsync(role))
-        {
-            await roleManager.CreateAsync(new IdentityRole(role));
-        }
-    }
-
-    // Hardcoded admin (ONLY ONCE)
-    var adminEmail = "admin@smartpacs.com";
-    var admin = await userManager.FindByEmailAsync(adminEmail);
-
-    if (admin == null)
-    {
-        var adminUser = new IdentityUser
-        {
-            UserName = adminEmail,
-            Email = adminEmail,
-            EmailConfirmed = true
-        };
-
-        await userManager.CreateAsync(adminUser, "Admin123!");
-        await userManager.AddToRoleAsync(adminUser, "Admin");
-    }
-}
-
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+
+app.UseCors("AllowLocalhost5500");
+
 app.UseAuthentication();
 app.UseAuthorization();
 

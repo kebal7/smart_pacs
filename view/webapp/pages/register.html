@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Register</h2>
+        <form id="registerForm">
+            <input type="email" id="regEmail" placeholder="Email" required>
+            <input type="password" id="regPassword" placeholder="Password" required>
+            <select id="regRole" required>
+                <option value="">Select Role</option>
+                <option value="Radiographer">Radiographer</option>
+                <option value="Radiologist">Radiologist</option>
+                <option value="Clinician">Clinician</option>
+            </select>
+            <button type="submit" class="register">Register</button>
+        </form>
+        <p class="link">Already have an account? <a href="index.html">Login</a></p>
+    </div>
+
+    <script type="module">
+        import { registerUser } from '../js/auth.js';
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            const role = document.getElementById('regRole').value;
+
+            const result = await registerUser(email, password, role);
+            console.log(result);
+
+            if(result.message){
+                alert(result.message);
+                window.location.href = "./login.html"; // go to login
+            } else {
+                alert(JSON.stringify(result));
+            }
+        });
+    </script>
+</body>
+</html>
