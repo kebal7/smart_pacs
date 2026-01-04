@@ -14,6 +14,7 @@
 
     <ItemGroup>
         <PackageReference Include="fo-dicom" Version="5.2.5" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.1" />
         <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.1" />
         <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.1" />
         <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.1" />
@@ -36,6 +37,8 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Entity\" />
+      <Folder Include="services\Auth\" />
       <Folder Include="wwwroot\resources\dummy_image\" />
     </ItemGroup>
 

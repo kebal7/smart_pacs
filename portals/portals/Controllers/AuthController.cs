@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 
 namespace portals.Controllers
 {
@@ -64,16 +65,46 @@ namespace portals.Controllers
                 return Unauthorized("Invalid credentials.");
 
             var roles = await _userManager.GetRolesAsync(user);
+            
+            Console.WriteLine("===== IDENTITY USER =====");
+            Console.WriteLine($"Id: {user.Id}");
+            Console.WriteLine($"UserName: {user.UserName}");
+            Console.WriteLine($"Email: {user.Email}");
+            Console.WriteLine($"Roles: {string.Join(",", roles)}");
+            
             var token = GenerateJwtToken(user, roles);
-
+            Console.WriteLine(token);
             return Ok(new { token });
         }
+        
+        [Authorize]
+        [HttpGet("validate")]
+        public IActionResult Validate()
+        {
+            Console.WriteLine("===== CLAIMS =====");
+
+            foreach (var claim in User.Claims)
+            {
+                Console.WriteLine($"{claim.Type} = {claim.Value}");
+            }
+
+            Console.WriteLine("Identity.Name = " + User.Identity?.Name);
+
+            return Ok(new
+            {
+                name = User.Identity?.Name,
+                claims = User.Claims.Select(c => new { c.Type, c.Value })
+            });
+        }
+
+
 
         // ---------------- Helpers ----------------
         private string GenerateJwtToken(IdentityUser user, IList<string> roles)
         {
             var claims = new List<Claim>
             {
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id),
                 new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName)
             };

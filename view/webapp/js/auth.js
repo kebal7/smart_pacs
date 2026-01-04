@@ -1,10 +1,10 @@
-import { setToken } from './api.js';
+import { apiFetch, setToken } from './api.js';
 
 let API_BASE = "http://localhost:5266/api/Auth";
 
 export async function login(email, password) {
     try {
-        const res = await fetch("http://localhost:5266/api/Auth/login", {
+        const res = await fetch(`${API_BASE}/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password })
@@ -53,7 +53,7 @@ export async function registerUser(email, password, role) {
 export function logout() {
     localStorage.removeItem("jwtToken");
     setToken(null);
-    window.location.href = "/login.html";
+    window.location.href = "../pages/login.html";
 }
 
 export function loadToken() {
@@ -61,11 +61,39 @@ export function loadToken() {
     if (token) setToken(token);
 }
 
-export function requireAuth() {
+export async function validateToken(requiredRole = null) {
     const token = localStorage.getItem("jwtToken");
-    if (!token) {
-        window.location.href = "../pages/login.html";
-    } else {
+    if (!token) return false;
+
+    try {
+        const res = await fetch(`${API_BASE}/validate`, {
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        if (!res.ok) return false;
+        console.log(res.json)
+        const user = await res.json();
+
+        // validates requiredRole
+        if (requiredRole && user.role !== requiredRole) {
+            return false;
+        }
+
         setToken(token);
+        return true;
+
+    } catch {
+        return false;
+    }
+}
+
+
+export async function requireAuth(requiredRole = null) {
+    const valid = await validateToken(requiredRole);
+    if (!valid) {
+        console.log("validation failed");
+        //logout();
     }
 }

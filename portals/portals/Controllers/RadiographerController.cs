@@ -11,6 +11,11 @@ namespace portals.Controllers
     [Authorize(Roles = "Radiographer")]
     public class RadiographerController : Controller
     {
+        private readonly IDicomService _dicomService;
+        public RadiographerController(IDicomService dicomService)
+        {
+            _dicomService = dicomService;
+        }
         public IActionResult Index()
         {
             return View();
@@ -30,8 +35,7 @@ namespace portals.Controllers
             }
 
             // Convert to DICOM
-            var service = new DicomService();
-            var ds = await service.CreateDicomAsync(imageBytes, new PatientData
+            var ds = await _dicomService.CreateDicomAsync(imageBytes, new PatientData
             {
                 PatientID = model.PatientID,
                 PatientName = model.PatientName,

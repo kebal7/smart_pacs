@@ -19,7 +19,7 @@ public class PatientData
     public string ViewPosition { get; set; } = "PA";
 }
 
-public class DicomService
+public class DicomService : IDicomService
 {
     public async Task<DicomDataset> CreateDicomAsync(byte[] imageBytes, PatientData patient)
     {
