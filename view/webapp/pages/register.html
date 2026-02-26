@@ -1,46 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Register</title>
-    <link rel="stylesheet" href="css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart PACS | Register</title>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+body {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f4f7fa;
+}
+
+/* Card */
+.card {
+    background: #ffffff;
+    padding: 40px;
+    width: 380px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    text-align: center;
+}
+
+h2 {
+    margin-bottom: 8px;
+    color: #1e3a5f;
+}
+
+.subtitle {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 30px;
+}
+
+/* Input Group */
+.input-group {
+    position: relative;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #374151;
+}
+
+.input-group input,
+.input-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 5px;
+    font-size: 14px;
+    outline: none;
+    background-color: #fff;
+}
+
+.input-group input:focus,
+.input-group select:focus {
+    border-color: #2563eb;
+}
+
+/* Button */
+button {
+    width: 100%;
+    padding: 11px;
+    border: none;
+    border-radius: 5px;
+    background-color: #1e3a5f;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #16324f;
+}
+
+/* Link */
+.link {
+    margin-top: 18px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.link a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.link a:hover {
+    text-decoration: underline;
+}
+</style>
 </head>
+
 <body>
-    <div class="container">
-        <h2>Register</h2>
-        <form id="registerForm">
-            <input type="email" id="regEmail" placeholder="Email" required>
-            <input type="password" id="regPassword" placeholder="Password" required>
+
+<div class="card">
+    <h2>Register Account</h2>
+    <p class="subtitle">Smart PACS System Access</p>
+
+    <form id="registerForm">
+        <div class="input-group">
+            <label>Email</label>
+            <input type="email" id="regEmail" required>
+        </div>
+
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" id="regPassword" required>
+        </div>
+
+        <div class="input-group">
+            <label>Select Role</label>
             <select id="regRole" required>
-                <option value="">Select Role</option>
+                <option value="">Choose Role</option>
                 <option value="Radiographer">Radiographer</option>
                 <option value="Radiologist">Radiologist</option>
                 <option value="Clinician">Clinician</option>
             </select>
-            <button type="submit" class="register">Register</button>
-        </form>
-        <p class="link">Already have an account? <a href="index.html">Login</a></p>
-    </div>
+        </div>
 
-    <script type="module">
-        import { registerUser } from '../js/auth.js';
+        <button type="submit">Register</button>
+    </form>
 
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('regEmail').value;
-            const password = document.getElementById('regPassword').value;
-            const role = document.getElementById('regRole').value;
+    <p class="link">
+        Already have an account?
+        <a href="login.html">Login</a>
+    </p>
+</div>
 
-            const result = await registerUser(email, password, role);
-            console.log(result);
+<script type="module">
+import { registerUser } from '../js/auth.js';
 
-            if(result.message){
-                alert(result.message);
-                window.location.href = "./login.html"; // go to login
-            } else {
-                alert(JSON.stringify(result));
-            }
-        });
-    </script>
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('regEmail').value;
+    const password = document.getElementById('regPassword').value;
+    const role = document.getElementById('regRole').value;
+
+    const result = await registerUser(email, password, role);
+
+    if(result.message){
+        alert(result.message);
+        window.location.href = "./login.html";
+    } else {
+        alert(JSON.stringify(result));
+    }
+});
+</script>
+
 </body>
 </html>

@@ -1,0 +1,6 @@
+@pacs_webapi_HostAddress = http://localhost:5111
+
+GET {{pacs_webapi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
