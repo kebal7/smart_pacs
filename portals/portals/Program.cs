@@ -5,9 +5,12 @@ using Microsoft.EntityFrameworkCore;
 using portals.Data;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.IdentityModel.Tokens;
+using portals.services;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddScoped<IDicomService, DicomService>();
 
 // Configure PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>

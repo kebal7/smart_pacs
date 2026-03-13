@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace portals.Controllers
 {
-    [Authorize(Roles = "Radiographer")]
+    //[Authorize(Roles = "Radiographer")]
     public class RadiographerController : Controller
     {
         private readonly IDicomService _dicomService;

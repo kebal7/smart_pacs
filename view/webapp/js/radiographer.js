@@ -16,7 +16,7 @@ const dummyImages = [
 ];
 
 let currentDicom = null;
-let currentImageName = null;
+let currentImageFile = null;
 let currentImagePath = null;
 
 
@@ -60,7 +60,7 @@ fileInput.addEventListener("change", (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    currentImageName = file.name;
+    currentImageFile = file;
 
     const reader = new FileReader();
     reader.onload = (e) => updatePreview(e.target.result);
@@ -73,12 +73,16 @@ fileInput.addEventListener("change", (event) => {
 // -------------------------------
 //  Simulate X-ray Acquisition
 // -------------------------------
-document.getElementById('acquireBtn').addEventListener('click', () => {
+document.getElementById('acquireBtn').addEventListener('click', async () => {
     const randomIndex = Math.floor(Math.random() * dummyImages.length);
-    currentImagePath = dummyImages[randomIndex];
-    currentImageName = currentImagePath;
+    const path = dummyImages[randomIndex];
 
-    updatePreview(currentImagePath);
+    const response = await fetch(path);
+    const blob = await response.blob();
+
+    currentImageFile = new File([blob], path.split("/").pop(), { type: blob.type });
+
+    updatePreview(URL.createObjectURL(blob));
     alert("Simulated X-Ray acquired!");
 });
 
@@ -86,27 +90,48 @@ document.getElementById('acquireBtn').addEventListener('click', () => {
 // -------------------------------
 //  Generate Simulated DICOM
 // -------------------------------
-document.getElementById('uploadDicomBtn').addEventListener('click', () => {
-    if (!currentImageName) {
-        alert("Please acquire or upload an image first!");
+document.getElementById('uploadDicomBtn').addEventListener('click', async () => {
+
+    if (!currentImageFile) {
+        alert("Please upload an image first!");
         return;
     }
 
-    const patientData = {
-        PatientID: document.getElementById('patientId').value,
-        AccessionNumber: document.getElementById('accessionNo').value || `TEMP-${Date.now()}`,
-        PatientName: document.getElementById('patientName').value,
-        PatientDOB: document.getElementById('patientDOB').value,
-        PatientSex: document.getElementById('patientSex').value,
-        StudyType: document.getElementById('studyType').value,
-        Image: currentImageName,
-        Timestamp: new Date().toISOString()
-    };
+    const formData = new FormData();
 
-    currentDicom = JSON.stringify(patientData, null, 2);
-    console.log("Generated simulated DICOM:", currentDicom);
+    formData.append("PatientID", document.getElementById('patientId').value);
+    formData.append("PatientName", document.getElementById('patientName').value);
+    formData.append("PatientDOB", document.getElementById('patientDOB').value);
+    formData.append("PatientSex", document.getElementById('patientSex').value);
+    formData.append("StudyType", document.getElementById('studyType').value);
+    formData.append("ImageFile", currentImageFile);
 
-    alert("DICOM generated (simulated)!");
+    try {
+
+        const response = await fetch("http://localhost:5266/Radiographer/UploadDicom", {
+            method: "POST",
+            body: formData
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            alert("Upload failed: " + text);
+            return;
+        }
+
+        const result = await response.json();
+
+        currentDicom = result.filePath;
+
+        alert("DICOM created successfully!");
+
+        console.log("Server response:", result);
+
+    } catch (err) {
+        console.error(err);
+        alert("Error uploading DICOM");
+    }
+
 });
 
 
@@ -138,7 +163,7 @@ document.getElementById('clearFieldsBtn').addEventListener('click', () => {
     document.getElementById('patientForm').reset();
     document.getElementById('fileInput').value = "";
     currentDicom = null;
-    currentImageName = null;
+    currentImageFile = null;
     currentImagePath = null;
 
     updatePreview(null);
