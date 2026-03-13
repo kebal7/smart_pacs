@@ -3,6 +3,7 @@ using FellowOakDicom.IO.Buffer;
 using Microsoft.AspNetCore.Mvc;
 using portals.services;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 
@@ -24,6 +25,7 @@ namespace portals.Controllers
         [HttpPost]
         public async Task<IActionResult> UploadDicom([FromForm] PatientUploadModel model)
         {
+            // 1. Read uploaded image
             if (model.ImageFile == null || model.ImageFile.Length == 0)
                 return BadRequest("No image uploaded");
 
@@ -34,7 +36,7 @@ namespace portals.Controllers
                 imageBytes = ms.ToArray();
             }
 
-            // Convert to DICOM
+            //2. Convert to DICOM
             var ds = await _dicomService.CreateDicomAsync(imageBytes, new PatientData
             {
                 PatientID = model.PatientID,
@@ -43,20 +45,37 @@ namespace portals.Controllers
                 Sex = model.PatientSex,
                 StudyType = model.StudyType
             });
-
-            // For now, just print key fields
-            System.Console.WriteLine("=== DICOM Generated ===");
-            System.Console.WriteLine($"Patient: {ds.GetSingleValue<string>(DicomTag.PatientName)}");
-            System.Console.WriteLine($"ID: {ds.GetSingleValue<string>(DicomTag.PatientID)}");
-            System.Console.WriteLine($"Modality: {ds.GetSingleValue<string>(DicomTag.Modality)}");
-            System.Console.WriteLine("======================");
-
-            // Optionally, save file temporarily
-            var tempPath = Path.Combine(Path.GetTempPath(), $"{model.PatientID}_{Path.GetFileName(model.ImageFile.FileName)}.dcm");
+            
+            Console.WriteLine(ds);
+            // 3. Save to MemoryStream (no temp file)
+            var msDicom = new MemoryStream();
             var dicomFile = new DicomFile(ds);
-            await dicomFile.SaveAsync(tempPath);
+            await dicomFile.SaveAsync(msDicom);
+            msDicom.Position = 0;
+            
+            Console.WriteLine("UploadDicom called");
+            Console.WriteLine($"File length: {model.ImageFile?.Length}");
+            
+            // 4. Upload to Orthanc
+            using var client = new HttpClient();
+            var byteArray = Encoding.ASCII.GetBytes("orthanc:orthanc");
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+            var content = new MultipartFormDataContent();
+            content.Add(new StreamContent(msDicom), "file", $"{model.PatientID}.dcm");
 
-            return Ok(new { message = "DICOM created", filePath = tempPath });
+            var response = await client.PostAsync("http://localhost:8042/instances", content);
+            if (!response.IsSuccessStatusCode)
+                return StatusCode(500, "Failed to upload to Orthanc");
+
+            var orthancResult = await response.Content.ReadAsStringAsync();
+            Console.WriteLine(orthancResult);
+            
+            return Ok(new
+            {
+                message = "DICOM created and uploaded to Orthanc",
+                orthancResponse = orthancResult
+            });
         }
         
         [HttpGet]

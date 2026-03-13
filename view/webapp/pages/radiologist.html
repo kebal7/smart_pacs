@@ -1,0 +1,70 @@
+<h1>Radiologist Portal</h1>
+
+<button id="loadDicoms">Load DICOMs</button>
+
+<table id="dicomTable" border="1">
+    <thead>
+        <tr>
+            <th>Patient Name</th>
+            <th>Patient ID</th>
+            <th>Modality</th>
+            <th>Study Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+// document.getElementById('loadDicoms').addEventListener('click', async () => {
+//     const res = await fetch('http://localhost:5266/Radiologist/ListDicoms');
+//     const instanceIds = await res.json();
+
+//     const tbody = document.querySelector('#dicomTable tbody');
+//     tbody.innerHTML = '';
+
+//     for (const id of instanceIds) {
+//         const metaRes = await fetch(`http://localhost:5266/Radiologist/GetDicomMetadata?instanceId=${id}`);
+//         const metadataRaw = await metaRes.json();
+
+//         console.log(metadataRaw)
+
+
+//     }
+// });
+
+document.getElementById('loadDicoms').addEventListener('click', async () => {
+    const res = await fetch('http://localhost:5266/Radiologist/ListDicoms');
+    const instanceIds = await res.json();
+
+    const tbody = document.querySelector('#dicomTable tbody');
+    tbody.innerHTML = '';
+
+    for (const id of instanceIds) {
+        const metaRes = await fetch(`http://localhost:5266/Radiologist/GetDicomMetadata?instanceId=${id}`);
+        const metadataRaw = await metaRes.json();
+
+        // Use Value directly since it's a string
+        const metadata = {
+            PatientName: metadataRaw["0010,0010"]?.Value || '',
+            PatientID: metadataRaw["0010,0020"]?.Value || '',
+            Modality: metadataRaw["0008,0060"]?.Value || '',
+            StudyDate: metadataRaw["0008,0020"]?.Value || ''
+        };
+
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${metadata.PatientName}</td>
+            <td>${metadata.PatientID}</td>
+            <td>${metadata.Modality}</td>
+            <td>${metadata.StudyDate}</td>
+            <td>
+                <a href="http://localhost:5266/Radiologist/DownloadDicom?instanceId=${id}" target="_blank">Download</a>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    }
+});
+
+</script>
