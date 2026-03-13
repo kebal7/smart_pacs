@@ -62,6 +62,9 @@ document.getElementById('loadDicoms').addEventListener('click', async () => {
             <td>
                 <a href="http://localhost:5266/Radiologist/DownloadDicom?instanceId=${id}" target="_blank">Download</a>
             </td>
+            <td>
+                <a href="viewer.html?instanceId=${id}">View</a>
+            </td>
         `;
         tbody.appendChild(tr);
     }

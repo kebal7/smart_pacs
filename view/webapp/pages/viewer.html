@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>DICOM Viewer</title>
+
+<script src="https://unpkg.com/cornerstone-core@2.4.0/dist/cornerstone.js"></script>
+<script src="https://unpkg.com/dicom-parser@1.8.21/dist/dicomParser.js"></script>
+<script src="https://unpkg.com/cornerstone-wado-image-loader@3.0.2/dist/cornerstoneWADOImageLoader.js"></script>
+
+</head>
+
+<body>
+
+<h1>DICOM Viewer</h1>
+
+<div id="dicomImage"
+     style="width:700px;height:700px;background:black;">
+</div>
+
+<script>
+
+    const params = new URLSearchParams(window.location.search);
+    const instanceId = params.get("instanceId");
+
+    const element = document.getElementById("dicomImage");
+
+    cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
+    cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
+
+    cornerstone.enable(element);
+
+    const imageId =
+        `wadouri:http://localhost:5266/Radiologist/DownloadDicom?instanceId=${instanceId}`;
+
+    cornerstone.loadAndCacheImage(imageId).then(function(image){
+
+        cornerstone.displayImage(element, image);
+
+    }).catch(function(err){
+
+        console.error("DICOM load failed", err);
+
+    });
+
+</script>
+
+</body>
+</html>
