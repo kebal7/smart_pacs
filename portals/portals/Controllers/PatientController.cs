@@ -34,7 +34,6 @@ public class PatientController : ControllerBase
 
     // CREATE patient
     [HttpPost]
-    [HttpPost]
     public IActionResult CreatePatient(CreatePatientDto dto)
     {
         var lastPatient = _context.Patients
