@@ -2,6 +2,7 @@
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
+        <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <UserSecretsId>aspnet-portals-5a98ce97-7f05-434e-a3e4-57308fabee34</UserSecretsId>
