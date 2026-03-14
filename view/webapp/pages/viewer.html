@@ -1,49 +1,125 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <title>DICOM Viewer with Predictions</title>
 
-<title>DICOM Viewer</title>
+    <!-- Cornerstone -->
+    <script src="https://unpkg.com/cornerstone-core/dist/cornerstone.min.js"></script>
+    <script src="https://unpkg.com/cornerstone-math/dist/cornerstoneMath.min.js"></script>
+    <script src="https://unpkg.com/cornerstone-tools/dist/cornerstoneTools.min.js"></script>
+    <script src="https://unpkg.com/dicom-parser/dist/dicomParser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cornerstone-wado-image-loader@4.1.2/dist/cornerstoneWADOImageLoader.bundle.min.js"></script>
 
-<script src="https://unpkg.com/cornerstone-core@2.4.0/dist/cornerstone.js"></script>
-<script src="https://unpkg.com/dicom-parser@1.8.21/dist/dicomParser.js"></script>
-<script src="https://unpkg.com/cornerstone-wado-image-loader@3.0.2/dist/cornerstoneWADOImageLoader.js"></script>
-
+    <style>
+        #dicomContainer { display: flex; gap: 20px; }
+        #dicomImage { width: 800px; height: 800px; background: black; }
+        #predictionBox { width: 300px; height: 800px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; font-family: sans-serif; }
+        #toolbar { margin-bottom: 10px; }
+        #toolbar button { margin-right: 5px; }
+        table { width: 100%; border-collapse: collapse; }
+        td, th { border: 1px solid #ccc; padding: 5px; text-align: left; }
+    </style>
 </head>
 
 <body>
+<h2>DICOM Viewer with Predictions</h2>
 
-<h1>DICOM Viewer</h1>
+<div id="toolbar">
+    <button onclick="setTool('Wwwc')">Window/Level</button>
+    <button onclick="setTool('Zoom')">Zoom</button>
+    <button onclick="setTool('Pan')">Pan</button>
+    <button onclick="setTool('Length')">Length</button>
+    <button onclick="setTool('RectangleRoi')">ROI</button>
+    <button onclick="setTool('Angle')">Angle</button>
+    <button onclick="runPrediction()">Run Prediction</button>
+</div>
 
-<div id="dicomImage"
-     style="width:700px;height:700px;background:black;">
+<div id="dicomContainer">
+    <div id="dicomImage"></div>
+    <div id="predictionBox">
+        <h3>Predictions</h3>
+        <p>Click "Run Prediction" to fetch results.</p>
+    </div>
 </div>
 
 <script>
-
     const params = new URLSearchParams(window.location.search);
     const instanceId = params.get("instanceId");
+    const dicomElement = document.getElementById("dicomImage");
+    const predictionBox = document.getElementById("predictionBox");
 
-    const element = document.getElementById("dicomImage");
-
+    // --- Setup Cornerstone ---
     cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
     cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
+    cornerstoneTools.external.cornerstone = cornerstone;
+    cornerstoneTools.external.cornerstoneMath = cornerstoneMath;
 
-    cornerstone.enable(element);
+    cornerstone.enable(dicomElement);
+    cornerstoneTools.init();
 
-    const imageId =
-        `wadouri:http://localhost:5266/Radiologist/DownloadDicom?instanceId=${instanceId}`;
+    const imageId = `wadouri:http://localhost:5266/Radiologist/DownloadDicom?instanceId=${instanceId}`;
+    cornerstone.loadAndCacheImage(imageId).then(img => {
+        cornerstone.displayImage(dicomElement, img);
+    }).catch(err => console.error("DICOM load failed", err));
 
-    cornerstone.loadAndCacheImage(imageId).then(function(image){
+    // --- Tools ---
+    cornerstoneTools.addTool(cornerstoneTools.WwwcTool);
+    cornerstoneTools.addTool(cornerstoneTools.ZoomTool);
+    cornerstoneTools.addTool(cornerstoneTools.PanTool);
+    cornerstoneTools.addTool(cornerstoneTools.LengthTool);
+    cornerstoneTools.addTool(cornerstoneTools.RectangleRoiTool);
+    cornerstoneTools.addTool(cornerstoneTools.AngleTool);
 
-        cornerstone.displayImage(element, image);
+    cornerstoneTools.setToolActive('Wwwc', { mouseButtonMask: 1 });
+    cornerstoneTools.setToolActive('Zoom', { mouseButtonMask: 2 });
+    cornerstoneTools.setToolActive('Pan', { mouseButtonMask: 4 });
 
-    }).catch(function(err){
+    function setTool(tool) {
+        cornerstoneTools.setToolActive(tool, { mouseButtonMask: 1 });
+    }
 
-        console.error("DICOM load failed", err);
+    // --- Prediction ---
+    async function runPrediction() {
+        predictionBox.innerHTML = "<h3>Predictions</h3><p>Running...</p>";
 
-    });
+        try {
+            // fetch DICOM bytes from your download endpoint
+            const dicomRes = await fetch(`http://localhost:5266/Radiologist/DownloadDicom?instanceId=${instanceId}`);
+            const blob = await dicomRes.blob();
+            const file = new File([blob], "temp.dcm", { type: "application/dicom" });
 
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const res = await fetch("http://localhost:8001/predict", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!res.ok) throw new Error(`Prediction failed: ${res.status}`);
+
+            const data = await res.json();
+
+            // display all predictions with probabilities
+            let html = `<h3>Predictions</h3>`;
+            html += `<p><strong>Filename:</strong> ${data.filename}</p>`;
+            html += `<table><tr><th>Disease</th><th>Probability</th><th>Positive</th></tr>`;
+            for (const [key, val] of Object.entries(data.all_predictions)) {
+                html += `<tr>
+                    <td>${key}</td>
+                    <td>${(val.probability*100).toFixed(2)}%</td>
+                    <td>${val.positive ? "Yes" : "No"}</td>
+                </tr>`;
+            }
+            html += "</table>";
+
+            predictionBox.innerHTML = html;
+
+        } catch (err) {
+            predictionBox.innerHTML = `<p style="color:red;">Error: ${err}</p>`;
+            console.error(err);
+        }
+    }
 </script>
-
 </body>
 </html>
