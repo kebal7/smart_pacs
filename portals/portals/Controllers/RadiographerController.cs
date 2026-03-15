@@ -6,6 +6,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using portals.Data;
 
 namespace portals.Controllers
 {
@@ -13,9 +14,12 @@ namespace portals.Controllers
     public class RadiographerController : Controller
     {
         private readonly IDicomService _dicomService;
-        public RadiographerController(IDicomService dicomService)
+        private readonly ApplicationDbContext _context;
+        
+        public RadiographerController(IDicomService dicomService, ApplicationDbContext context)
         {
             _dicomService = dicomService;
+            _context = context;
         }
         public IActionResult Index()
         {
@@ -89,6 +93,23 @@ namespace portals.Controllers
 
             return PhysicalFile(filePath, mimeType, fileName);
         }
+        
+        [HttpGet("api/patients/{patientId}")]
+        public IActionResult GetPatientByIdentifier(string patientId)
+        {
+            var patient = _context.Patients.FirstOrDefault(p => p.PatientIdentifier == patientId);
+            if (patient == null) return NotFound();
+            return Ok(patient);
+        }
+
+        // Optional: generate new Accession & Study ID
+        [HttpGet("api/study/new")]
+        public IActionResult GenerateNewStudy()
+        {
+            var nextAccession = $"ACC-{DateTime.UtcNow:yyyyMMddHHmmss}";
+            var nextStudy = $"STUDY-{DateTime.UtcNow:yyyyMMddHHmmss}";
+            return Ok(new { accessionNo = nextAccession, studyId = nextStudy });
+        }
     }
 
     public class PatientUploadModel
@@ -98,6 +119,7 @@ namespace portals.Controllers
         public string PatientDOB { get; set; }
         public string PatientSex { get; set; }
         public string StudyType { get; set; }
+        
         public IFormFile ImageFile { get; set; }
     }
 }

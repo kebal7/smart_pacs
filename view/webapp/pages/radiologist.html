@@ -1,73 +1,255 @@
-<h1>Radiologist Portal</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPACS | Radiologist Worklist</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --primary: #0f172a; /* Deep Slate */
+            --accent: #2563eb;  /* Medical Blue */
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
 
-<button id="loadDicoms">Load DICOMs</button>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
 
-<table id="dicomTable" border="1">
-    <thead>
-        <tr>
-            <th>Patient Name</th>
-            <th>Patient ID</th>
-            <th>Modality</th>
-            <th>Study Date</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Header Area */
+        .header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 24px;
+            background: var(--accent);
+            border-radius: 4px;
+        }
+
+        /* Action Button */
+        #loadDicoms {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+        }
+
+        #loadDicoms:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        /* Table Card */
+        .table-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        thead {
+            background-color: #f8fafc;
+            border-bottom: 2px solid var(--border);
+        }
+
+        th {
+            padding: 16px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background-color: #f8fafc;
+        }
+
+        /* Modality Badge */
+        .modality-badge {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        /* Action Links as Buttons */
+        .btn-action {
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.2s;
+        }
+
+        .btn-view {
+            background-color: #f1f5f9;
+            color: var(--accent);
+            margin-right: 8px;
+        }
+
+        .btn-view:hover {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .btn-download {
+            color: var(--text-muted);
+        }
+
+        .btn-download:hover {
+            color: var(--text-main);
+            text-decoration: underline;
+        }
+
+        .patient-id {
+            color: var(--text-muted);
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <div class="header-flex">
+        <h1>Radiologist Worklist</h1>
+        <button id="loadDicoms">🔄 Refresh Worklist</button>
+    </div>
+
+    <div class="table-card">
+        <table id="dicomTable">
+            <thead>
+                <tr>
+                    <th>Patient Details</th>
+                    <th>Patient ID</th>
+                    <th>Modality</th>
+                    <th>Study Date</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr id="emptyState">
+                    <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        No studies loaded. Click "Refresh Worklist" to begin.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 
 <script>
-// document.getElementById('loadDicoms').addEventListener('click', async () => {
-//     const res = await fetch('http://localhost:5266/Radiologist/ListDicoms');
-//     const instanceIds = await res.json();
-
-//     const tbody = document.querySelector('#dicomTable tbody');
-//     tbody.innerHTML = '';
-
-//     for (const id of instanceIds) {
-//         const metaRes = await fetch(`http://localhost:5266/Radiologist/GetDicomMetadata?instanceId=${id}`);
-//         const metadataRaw = await metaRes.json();
-
-//         console.log(metadataRaw)
-
-
-//     }
-// });
-
 document.getElementById('loadDicoms').addEventListener('click', async () => {
-    const res = await fetch('http://localhost:5266/Radiologist/ListDicoms');
-    const instanceIds = await res.json();
+    const btn = document.getElementById('loadDicoms');
+    btn.innerText = 'Loading...';
+    btn.disabled = true;
 
-    const tbody = document.querySelector('#dicomTable tbody');
-    tbody.innerHTML = '';
+    try {
+        const res = await fetch('http://localhost:5266/Radiologist/ListDicoms');
+        const instanceIds = await res.json();
 
-    for (const id of instanceIds) {
-        const metaRes = await fetch(`http://localhost:5266/Radiologist/GetDicomMetadata?instanceId=${id}`);
-        const metadataRaw = await metaRes.json();
+        const tbody = document.querySelector('#dicomTable tbody');
+        tbody.innerHTML = ''; // Clear empty state/previous data
 
-        // Use Value directly since it's a string
-        const metadata = {
-            PatientName: metadataRaw["0010,0010"]?.Value || '',
-            PatientID: metadataRaw["0010,0020"]?.Value || '',
-            Modality: metadataRaw["0008,0060"]?.Value || '',
-            StudyDate: metadataRaw["0008,0020"]?.Value || ''
-        };
+        for (const id of instanceIds) {
+            const metaRes = await fetch(`http://localhost:5266/Radiologist/GetDicomMetadata?instanceId=${id}`);
+            const metadataRaw = await metaRes.json();
 
+            const metadata = {
+                PatientName: metadataRaw["0010,0010"]?.Value || 'ANONYMOUS',
+                PatientID: metadataRaw["0010,0020"]?.Value || 'N/A',
+                Modality: metadataRaw["0008,0060"]?.Value || 'OT',
+                StudyDate: metadataRaw["0008,0020"]?.Value || 'Unknown'
+            };
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${metadata.PatientName}</td>
-            <td>${metadata.PatientID}</td>
-            <td>${metadata.Modality}</td>
-            <td>${metadata.StudyDate}</td>
-            <td>
-                <a href="http://localhost:5266/Radiologist/DownloadDicom?instanceId=${id}" target="_blank">Download</a>
-            </td>
-            <td>
-                <a href="viewer.html?instanceId=${id}">View</a>
-            </td>
-        `;
-        tbody.appendChild(tr);
+            // Format Date (assuming DICOM format YYYYMMDD)
+            let formattedDate = metadata.StudyDate;
+            if(formattedDate.length === 8) {
+                formattedDate = `${formattedDate.substring(0,4)}-${formattedDate.substring(4,6)}-${formattedDate.substring(6,8)}`;
+            }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${metadata.PatientName}</strong></td>
+                <td><span class="patient-id">${metadata.PatientID}</span></td>
+                <td><span class="modality-badge">${metadata.Modality}</span></td>
+                <td>${formattedDate}</td>
+                <td style="text-align: right;">
+                    <a href="viewer.html?instanceId=${id}" class="btn-action btn-view">👁️ View</a>
+                    <a href="http://localhost:5266/Radiologist/DownloadDicom?instanceId=${id}" target="_blank" class="btn-action btn-download">📥 Download</a>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        }
+    } catch (error) {
+        console.error("Error fetching DICOMs:", error);
+        alert("Could not connect to the PACS server.");
+    } finally {
+        btn.innerText = '🔄 Refresh Worklist';
+        btn.disabled = false;
     }
 });
-
 </script>
+
+</body>
+</html>

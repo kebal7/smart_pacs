@@ -1,125 +1,180 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>DICOM Viewer with Predictions</title>
+    <meta charset="UTF-8">
+    <title>SmartPACS | AI Diagnostic Pro</title>
 
-    <!-- Cornerstone -->
-    <script src="https://unpkg.com/cornerstone-core/dist/cornerstone.min.js"></script>
-    <script src="https://unpkg.com/cornerstone-math/dist/cornerstoneMath.min.js"></script>
-    <script src="https://unpkg.com/cornerstone-tools/dist/cornerstoneTools.min.js"></script>
-    <script src="https://unpkg.com/dicom-parser/dist/dicomParser.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cornerstone-wado-image-loader@4.1.2/dist/cornerstoneWADOImageLoader.bundle.min.js"></script>
+    <script src="https://unpkg.com/cornerstone-core@2.3.0/dist/cornerstone.min.js"></script>
+    <script src="https://unpkg.com/cornerstone-math@0.1.9/dist/cornerstoneMath.min.js"></script>
+    <script src="https://unpkg.com/cornerstone-tools@6.0.7/dist/cornerstoneTools.js"></script>
+    <script src="https://unpkg.com/dicom-parser@1.8.13/dist/dicomParser.min.js"></script>
+    <script src="https://unpkg.com/cornerstone-wado-image-loader@4.13.0/dist/cornerstoneWADOImageLoader.bundle.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        #dicomContainer { display: flex; gap: 20px; }
-        #dicomImage { width: 800px; height: 800px; background: black; }
-        #predictionBox { width: 300px; height: 800px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; font-family: sans-serif; }
-        #toolbar { margin-bottom: 10px; }
-        #toolbar button { margin-right: 5px; }
-        table { width: 100%; border-collapse: collapse; }
-        td, th { border: 1px solid #ccc; padding: 5px; text-align: left; }
+        :root {
+            --bg: #09090b; --panel: #18181b; --accent: #3b82f6; --border: #27272a; --text: #f4f4f5;
+        }
+        body, html { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; }
+        
+        .layout { display: flex; flex-direction: column; height: 100vh; }
+        
+        /* Toolbar Styling */
+        .toolbar { 
+            background: var(--panel); border-bottom: 1px solid var(--border); 
+            padding: 10px 20px; display: flex; gap: 10px; align-items: center;
+        }
+        .btn {
+            background: #27272a; border: 1px solid var(--border); color: #a1a1aa;
+            padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px;
+        }
+        .btn:hover { background: #3f3f46; color: white; }
+        .btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .btn-ai { background: #059669; color: white; border: none; margin-left: auto; }
+
+        /* Viewer Area */
+        .main { flex: 1; display: flex; overflow: hidden; position: relative; }
+        #dicomImage { 
+            flex: 1; background: #000; position: relative; 
+            touch-action: none; /* Prevents mobile/tablet scrolling interference */
+            cursor: crosshair;
+        }
+
+        /* Sidebar */
+        .sidebar { width: 300px; background: var(--panel); border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; }
+        
+        /* Debug Console Overlay */
+        #debugLog {
+            position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7);
+            color: #0f0; font-family: monospace; font-size: 10px; padding: 5px; pointer-events: none; border-radius: 4px;
+        }
     </style>
 </head>
-
 <body>
-<h2>DICOM Viewer with Predictions</h2>
 
-<div id="toolbar">
-    <button onclick="setTool('Wwwc')">Window/Level</button>
-    <button onclick="setTool('Zoom')">Zoom</button>
-    <button onclick="setTool('Pan')">Pan</button>
-    <button onclick="setTool('Length')">Length</button>
-    <button onclick="setTool('RectangleRoi')">ROI</button>
-    <button onclick="setTool('Angle')">Angle</button>
-    <button onclick="runPrediction()">Run Prediction</button>
-</div>
+<div class="layout">
+    <div class="toolbar">
+        <div style="font-weight: 800; margin-right: 20px; color: var(--accent);">SmartPACS</div>
+        <button class="btn active" id="btn-Wwwc" onclick="switchTool('Wwwc')"><i data-lucide="sun"></i> Contrast</button>
+        <button class="btn" id="btn-Zoom" onclick="switchTool('Zoom')"><i data-lucide="search"></i> Zoom</button>
+        <button class="btn" id="btn-Pan" onclick="switchTool('Pan')"><i data-lucide="move"></i> Pan</button>
+        <button class="btn" id="btn-Length" onclick="switchTool('Length')"><i data-lucide="ruler"></i> Length</button>
+        <button class="btn" id="btn-Angle" onclick="switchTool('Angle')"><i data-lucide="drafting-compass"></i> Angle</button>
+        <button class="btn" onclick="resetImage()"><i data-lucide="refresh-cw"></i> Reset</button>
+        <button class="btn btn-ai" onclick="runAI()"><i data-lucide="cpu"></i> Analyze AI</button>
+    </div>
 
-<div id="dicomContainer">
-    <div id="dicomImage"></div>
-    <div id="predictionBox">
-        <h3>Predictions</h3>
-        <p>Click "Run Prediction" to fetch results.</p>
+    <div class="main">
+        <div id="dicomImage"></div>
+        <div id="debugLog">System: Ready</div>
+        
+        <div class="sidebar">
+            <h4 style="margin:0 0 15px 0; font-size: 12px; color: #71717a; text-transform: uppercase;">AI Insights</h4>
+            <div id="aiResults" style="font-size: 14px; color: #a1a1aa;">Run AI to generate findings.</div>
+        </div>
     </div>
 </div>
 
 <script>
-    const params = new URLSearchParams(window.location.search);
-    const instanceId = params.get("instanceId");
-    const dicomElement = document.getElementById("dicomImage");
-    const predictionBox = document.getElementById("predictionBox");
+    lucide.createIcons();
+    const log = (msg) => document.getElementById('debugLog').innerText = `Status: ${msg}`;
 
-    // --- Setup Cornerstone ---
+    // 1. Initialize Libraries
+    const element = document.getElementById('dicomImage');
     cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
     cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
     cornerstoneTools.external.cornerstone = cornerstone;
     cornerstoneTools.external.cornerstoneMath = cornerstoneMath;
 
-    cornerstone.enable(dicomElement);
-    cornerstoneTools.init();
+    // 2. Setup Cornerstone
+    cornerstone.enable(element);
+    cornerstoneTools.init({
+        showHooks: true,
+        mouseWheelScrollEnabled: true
+    });
 
+    // 3. Define and Add Tools
+    const tools = [
+        { name: 'Wwwc', class: cornerstoneTools.WwwcTool },
+        { name: 'Zoom', class: cornerstoneTools.ZoomTool },
+        { name: 'Pan', class: cornerstoneTools.PanTool },
+        { name: 'Length', class: cornerstoneTools.LengthTool },
+        { name: 'Angle', class: cornerstoneTools.AngleTool }
+    ];
+
+    tools.forEach(t => {
+        cornerstoneTools.addTool(t.class);
+    });
+
+    // 4. Load Image
+    const params = new URLSearchParams(window.location.search);
+    const instanceId = params.get("instanceId") || "TEST_ID";
     const imageId = `wadouri:http://localhost:5266/Radiologist/DownloadDicom?instanceId=${instanceId}`;
-    cornerstone.loadAndCacheImage(imageId).then(img => {
-        cornerstone.displayImage(dicomElement, img);
-    }).catch(err => console.error("DICOM load failed", err));
 
-    // --- Tools ---
-    cornerstoneTools.addTool(cornerstoneTools.WwwcTool);
-    cornerstoneTools.addTool(cornerstoneTools.ZoomTool);
-    cornerstoneTools.addTool(cornerstoneTools.PanTool);
-    cornerstoneTools.addTool(cornerstoneTools.LengthTool);
-    cornerstoneTools.addTool(cornerstoneTools.RectangleRoiTool);
-    cornerstoneTools.addTool(cornerstoneTools.AngleTool);
+    log("Loading Image...");
+    cornerstone.loadAndCacheImage(imageId).then(image => {
+        cornerstone.displayImage(element, image);
+        log("Image Rendered. Tools Active.");
+        
+        // Default Interaction
+        switchTool('Wwwc');
+        
+        // Right click for Zoom (Universal)
+        cornerstoneTools.setToolActive('Zoom', { mouseButtonMask: 2 });
+    }).catch(err => {
+        log("Error: Server Offline or CORS issue.");
+        console.error(err);
+    });
 
-    cornerstoneTools.setToolActive('Wwwc', { mouseButtonMask: 1 });
-    cornerstoneTools.setToolActive('Zoom', { mouseButtonMask: 2 });
-    cornerstoneTools.setToolActive('Pan', { mouseButtonMask: 4 });
+    // 5. Tool Switcher Logic (The Fix)
+    function switchTool(activeName) {
+        log(`Active Tool: ${activeName}`);
+        
+        // UI
+        document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+        const btn = document.getElementById(`btn-${activeName}`);
+        if(btn) btn.classList.add('active');
 
-    function setTool(tool) {
-        cornerstoneTools.setToolActive(tool, { mouseButtonMask: 1 });
+        // Logic: Deactivate all, then activate one
+        tools.forEach(t => {
+            cornerstoneTools.setToolPassive(t.name);
+        });
+
+        // Set the chosen tool to Left Click
+        cornerstoneTools.setToolActive(activeName, { mouseButtonMask: 1 });
     }
 
-    // --- Prediction ---
-    async function runPrediction() {
-        predictionBox.innerHTML = "<h3>Predictions</h3><p>Running...</p>";
+    function resetImage() {
+        cornerstone.reset(element);
+        log("View Reset");
+    }
 
+    // AI Prediction
+    async function runAI() {
+        const resDiv = document.getElementById('aiResults');
+        resDiv.innerHTML = "Processing...";
         try {
-            // fetch DICOM bytes from your download endpoint
             const dicomRes = await fetch(`http://localhost:5266/Radiologist/DownloadDicom?instanceId=${instanceId}`);
             const blob = await dicomRes.blob();
-            const file = new File([blob], "temp.dcm", { type: "application/dicom" });
-
             const formData = new FormData();
-            formData.append("file", file);
+            formData.append("file", new File([blob], "img.dcm"));
 
-            const res = await fetch("http://localhost:8001/predict", {
-                method: "POST",
-                body: formData
-            });
-
-            if (!res.ok) throw new Error(`Prediction failed: ${res.status}`);
-
+            const res = await fetch("http://localhost:8001/predict", { method: "POST", body: formData });
             const data = await res.json();
-
-            // display all predictions with probabilities
-            let html = `<h3>Predictions</h3>`;
-            html += `<p><strong>Filename:</strong> ${data.filename}</p>`;
-            html += `<table><tr><th>Disease</th><th>Probability</th><th>Positive</th></tr>`;
-            for (const [key, val] of Object.entries(data.all_predictions)) {
-                html += `<tr>
-                    <td>${key}</td>
-                    <td>${(val.probability*100).toFixed(2)}%</td>
-                    <td>${val.positive ? "Yes" : "No"}</td>
-                </tr>`;
-            }
-            html += "</table>";
-
-            predictionBox.innerHTML = html;
-
-        } catch (err) {
-            predictionBox.innerHTML = `<p style="color:red;">Error: ${err}</p>`;
-            console.error(err);
+            
+            resDiv.innerHTML = Object.entries(data.all_predictions)
+                .map(([k, v]) => `<div style="margin-bottom:10px; padding:10px; background:#27272a; border-radius:4px;">
+                    <div style="font-weight:bold">${k}</div>
+                    <div style="color:${v.positive ? '#ef4444' : '#10b981'}">${(v.probability*100).toFixed(1)}% Sure</div>
+                </div>`).join('');
+        } catch (e) {
+            resDiv.innerHTML = "AI Server Unreachable.";
         }
     }
+
+    // Prevent browser context menu on right click (so Zoom works)
+    element.oncontextmenu = (e) => e.preventDefault();
 </script>
+
 </body>
 </html>
