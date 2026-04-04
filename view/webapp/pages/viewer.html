@@ -14,167 +14,477 @@
     <style>
         :root {
             --bg: #09090b; --panel: #18181b; --accent: #3b82f6; --border: #27272a; --text: #f4f4f5;
+            --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
         }
         body, html { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; }
-        
         .layout { display: flex; flex-direction: column; height: 100vh; }
         
-        /* Toolbar Styling */
         .toolbar { 
             background: var(--panel); border-bottom: 1px solid var(--border); 
-            padding: 10px 20px; display: flex; gap: 10px; align-items: center;
+            padding: 10px 20px; display: flex; gap: 10px; align-items: center; z-index: 10;
         }
         .btn {
             background: #27272a; border: 1px solid var(--border); color: #a1a1aa;
-            padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px;
+            padding: 8px 14px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px;
+            transition: all 0.2s; white-space: nowrap;
         }
         .btn:hover { background: #3f3f46; color: white; }
         .btn.active { background: var(--accent); color: white; border-color: var(--accent); }
         .btn-ai { background: #059669; color: white; border: none; margin-left: auto; }
-
-        /* Viewer Area */
+        
         .main { flex: 1; display: flex; overflow: hidden; position: relative; }
-        #dicomImage { 
-            flex: 1; background: #000; position: relative; 
-            touch-action: none; /* Prevents mobile/tablet scrolling interference */
-            cursor: crosshair;
+        #dicomContainer { flex: 1; background: #000; position: relative; overflow: hidden; }
+        #dicomImage { width: 100%; height: 100%; cursor: crosshair; }
+        
+        /* Custom Measurement Overlay */
+        #measurementOverlay {
+            position: absolute; top: 0; left: 0; pointer-events: none; z-index: 5;
         }
 
-        /* Sidebar */
-        .sidebar { width: 300px; background: var(--panel); border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; }
+        .sidebar { width: 340px; background: var(--panel); border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 18px; overflow-y: auto; }
+        .section-title { font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 8px; display: block; }
         
-        /* Debug Console Overlay */
+        #aiResults, #icdResults { font-size: 13px; color: #a1a1aa; background: #09090b; padding: 12px; border-radius: 6px; border: 1px solid var(--border); min-height: 40px; }
+        
+        textarea {
+            width: 100%; background: #09090b; border: 1px solid var(--border); color: white;
+            border-radius: 6px; padding: 12px; box-sizing: border-box; font-family: inherit; font-size: 13px; resize: none; outline: none;
+        }
+
         #debugLog {
-            position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7);
-            color: #0f0; font-family: monospace; font-size: 10px; padding: 5px; pointer-events: none; border-radius: 4px;
+            position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.85);
+            color: var(--success); font-family: monospace; font-size: 11px; padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); z-index: 100;
+        }
+
+        @media print {
+            /* 1. Force A4 Paper Size and Margins */
+            @page {
+                size: A4;
+                margin: 20mm; /* Standard hospital margin */
+            }
+
+            /* 2. Hide Web UI */
+            .layout, .toolbar, .sidebar, #dicomContainer, #debugLog, .btn {
+                display: none !important;
+            }
+
+            /* 3. Format the Print Container */
+            #printSection {
+                display: block !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                color: black !important;
+                background: white !important;
+                font-family: 'Times New Roman', serif;
+                font-size: 12pt; /* Professional print size */
+            }
+
+            /* 4. Fix Out-of-Bounds Text */
+            #printSection p, #printSection td {
+                word-wrap: break-word; /* Forces long text to wrap */
+                overflow-wrap: break-word;
+                white-space: pre-wrap; /* Preserves line breaks from textareas */
+                max-width: 100%;
+            }
+
+            /* 5. Ensure Tables don't stretch past page */
+            #printSection table {
+                width: 100%;
+                table-layout: fixed; /* Prevents columns from pushing out of bounds */
+            }
         }
     </style>
 </head>
 <body>
 
 <div class="layout">
-    <div class="toolbar">
-        <div style="font-weight: 800; margin-right: 20px; color: var(--accent);">SmartPACS</div>
-        <button class="btn active" id="btn-Wwwc" onclick="switchTool('Wwwc')"><i data-lucide="sun"></i> Contrast</button>
-        <button class="btn" id="btn-Zoom" onclick="switchTool('Zoom')"><i data-lucide="search"></i> Zoom</button>
-        <button class="btn" id="btn-Pan" onclick="switchTool('Pan')"><i data-lucide="move"></i> Pan</button>
-        <button class="btn" id="btn-Length" onclick="switchTool('Length')"><i data-lucide="ruler"></i> Length</button>
-        <button class="btn" id="btn-Angle" onclick="switchTool('Angle')"><i data-lucide="drafting-compass"></i> Angle</button>
-        <button class="btn" onclick="resetImage()"><i data-lucide="refresh-cw"></i> Reset</button>
-        <button class="btn btn-ai" onclick="runAI()"><i data-lucide="cpu"></i> Analyze AI</button>
-    </div>
+<div class="toolbar">
+    <div style="font-weight: 800; margin-right: 20px; color: var(--accent); font-size: 18px;">SmartPACS</div>
+    
+    <button class="btn active" id="btn-Wwwc" onclick="switchTool('Wwwc')">
+        <i data-lucide="sun"></i> Contrast <span class="kbd">Q</span>
+    </button>
+    <button class="btn" id="btn-Zoom" onclick="switchTool('Zoom')">
+        <i data-lucide="search"></i> Zoom <span class="kbd">W</span>
+    </button>
+    <button class="btn" id="btn-Pan" onclick="switchTool('Pan')">
+        <i data-lucide="move"></i> Pan <span class="kbd">E</span>
+    </button>
+    <button class="btn" id="btn-Length" onclick="switchTool('Length')">
+        <i data-lucide="ruler"></i> Length <span class="kbd">R</span>
+    </button>
+    <button class="btn" id="btn-Angle" onclick="switchTool('Angle')">
+        <i data-lucide="drafting-compass"></i> Angle <span class="kbd">T</span>
+    </button>
+    
+    <div style="width: 1px; height: 24px; background: var(--border); margin: 0 10px;"></div>
+
+    <button class="btn" onclick="invertImage()">
+        <i data-lucide="refresh-ccw"></i> Invert <span class="kbd">I</span>
+    </button>
+    <button class="btn" onclick="resetImage()">
+        <i data-lucide="rotate-ccw"></i> Reset <span class="kbd">C</span>
+    </button>
+    
+    <button class="btn btn-ai" id="aiBtn" onclick="runAIAnalysis()"><i data-lucide="cpu"></i> Analyze AI</button>
+</div>
 
     <div class="main">
-        <div id="dicomImage"></div>
+        <div id="dicomContainer">
+            <div id="dicomImage"></div>
+            <canvas id="measurementOverlay"></canvas>
+        </div>
         <div id="debugLog">System: Ready</div>
         
+
         <div class="sidebar">
-            <h4 style="margin:0 0 15px 0; font-size: 12px; color: #71717a; text-transform: uppercase;">AI Insights</h4>
-            <div id="aiResults" style="font-size: 14px; color: #a1a1aa;">Run AI to generate findings.</div>
+            <div style="background: #27272a; padding: 12px; border-radius: 8px;">
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span class="section-title" style="margin:0;">Study Info</span>
+                    <span id="statusBadge" style="font-size: 10px; font-weight: bold; color: var(--success);"></span>
+                </div>
+
+                <input type="text" id="studyDescription" placeholder="Study Description (e.g. Chest PA)" 
+                    style="width:100%; background:transparent; border:none; color:var(--accent); font-size:13px; outline:none;">
+            </div>
+
+            <div>
+                <span class="section-title">Clinical History</span>
+                <textarea id="clinicalHistory" rows="2" placeholder="Patient history..."></textarea>
+            </div>
+
+            <div>
+                <span class="section-title">AI Insights</span>
+                <div id="aiResults">Pending...</div>
+                <input type="hidden" id="aiSuggestion">
+            </div>
+
+            <div>
+                <span class="section-title">Findings</span>
+                <textarea id="findings" rows="6" placeholder="Detailed observations..."></textarea>
+            </div>
+
+            <div>
+                <span class="section-title">Impression (Conclusion)</span>
+                <textarea id="impression" rows="3" placeholder="Summary diagnosis..."></textarea>
+            </div>
+
+            <div>
+                <span class="section-title">Internal Notes</span>
+                <textarea id="otherNote" rows="2" placeholder="Private notes (not for patient)..."></textarea>
+            </div>
+
+            <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;">
+                <button class="btn" onclick="submitReport(false)">Save Draft</button>
+                <button class="btn btn-save" style="background:var(--success);" onclick="submitReport(true)">Finalize</button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    lucide.createIcons();
+    // --- STATE ---
+    let activeTool = 'Wwwc';
+    let isDragging = false;
+    let lastMousePos = { x: 0, y: 0 };
+    
+    // Custom Measurement State
+    let measurements = []; 
+    let currentM = null; // { type, points: [] }
+
+    const element = document.getElementById('dicomImage');
+    const mOverlay = document.getElementById('measurementOverlay');
+    const mCtx = mOverlay.getContext('2d');
     const log = (msg) => document.getElementById('debugLog').innerText = `Status: ${msg}`;
 
-    // 1. Initialize Libraries
-    const element = document.getElementById('dicomImage');
+    const TOOL_CONFIG = {
+        'Wwwc':   { key: 'q', cursor: 'n-resize',  icon: 'sun' },
+        'Zoom':   { key: 'w', cursor: 'zoom-in',   icon: 'search' },
+        'Pan':    { key: 'e', cursor: 'move',      icon: 'move' },
+        'Length': { key: 'r', cursor: 'crosshair', icon: 'ruler' },
+        'Angle':  { key: 't', cursor: 'crosshair', icon: 'drafting-compass' }
+    };
+
+    // --- KEYBOARD SHORTCUTS ---
+    window.addEventListener('keydown', (e) => {
+
+        //Prevent shortcuts from firing if the user is typing in a text field
+        const activeTag = document.activeElement.tagName;
+        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') {
+            return; 
+        }
+
+        const key = e.key.toLowerCase();
+        
+        // Check if key matches a tool config
+        for (const [toolName, cfg] of Object.entries(TOOL_CONFIG)) {
+            if (key === cfg.key) {
+                switchTool(toolName);
+                return;
+            }
+        }
+
+        // 'i' for Invert, 'c' for Clear/Reset
+        if (key === 'i') invertImage();
+        if (key === 'c') resetImage();
+    });
+
+    // --- INIT ---
     cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
     cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
-    cornerstoneTools.external.cornerstone = cornerstone;
-    cornerstoneTools.external.cornerstoneMath = cornerstoneMath;
-
-    // 2. Setup Cornerstone
     cornerstone.enable(element);
-    cornerstoneTools.init({
-        showHooks: true,
-        mouseWheelScrollEnabled: true
-    });
 
-    // 3. Define and Add Tools
-    const tools = [
-        { name: 'Wwwc', class: cornerstoneTools.WwwcTool },
-        { name: 'Zoom', class: cornerstoneTools.ZoomTool },
-        { name: 'Pan', class: cornerstoneTools.PanTool },
-        { name: 'Length', class: cornerstoneTools.LengthTool },
-        { name: 'Angle', class: cornerstoneTools.AngleTool }
-    ];
-
-    tools.forEach(t => {
-        cornerstoneTools.addTool(t.class);
-    });
-
-    // 4. Load Image
-    const params = new URLSearchParams(window.location.search);
-    const instanceId = params.get("instanceId") || "TEST_ID";
-    const imageId = `wadouri:http://localhost:5266/Radiologist/DownloadDicom?instanceId=${instanceId}`;
-
-    log("Loading Image...");
-    cornerstone.loadAndCacheImage(imageId).then(image => {
-        cornerstone.displayImage(element, image);
-        log("Image Rendered. Tools Active.");
-        
-        // Default Interaction
-        switchTool('Wwwc');
-        
-        // Right click for Zoom (Universal)
-        cornerstoneTools.setToolActive('Zoom', { mouseButtonMask: 2 });
-    }).catch(err => {
-        log("Error: Server Offline or CORS issue.");
-        console.error(err);
-    });
-
-    // 5. Tool Switcher Logic (The Fix)
-    function switchTool(activeName) {
-        log(`Active Tool: ${activeName}`);
-        
-        // UI
-        document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-        const btn = document.getElementById(`btn-${activeName}`);
-        if(btn) btn.classList.add('active');
-
-        // Logic: Deactivate all, then activate one
-        tools.forEach(t => {
-            cornerstoneTools.setToolPassive(t.name);
-        });
-
-        // Set the chosen tool to Left Click
-        cornerstoneTools.setToolActive(activeName, { mouseButtonMask: 1 });
+    function resizeOverlay() {
+        mOverlay.width = element.clientWidth;
+        mOverlay.height = element.clientHeight;
+        drawAll();
     }
+    window.addEventListener('resize', resizeOverlay);
 
-    function resetImage() {
-        cornerstone.reset(element);
-        log("View Reset");
-    }
+    // --- SMART DRAWING ENGINE ---
+    function drawAll() {
+        mCtx.clearRect(0, 0, mOverlay.width, mOverlay.height);
+        const image = cornerstone.getEnabledElement(element).image;
+        if (!image) return;
 
-    // AI Prediction
-    async function runAI() {
-        const resDiv = document.getElementById('aiResults');
-        resDiv.innerHTML = "Processing...";
-        try {
-            const dicomRes = await fetch(`http://localhost:5266/Radiologist/DownloadDicom?instanceId=${instanceId}`);
-            const blob = await dicomRes.blob();
-            const formData = new FormData();
-            formData.append("file", new File([blob], "img.dcm"));
+        const all = currentM ? [...measurements, currentM] : measurements;
+        
+        // Check for DICOM Physical Spacing
+        const rowSpc = image.rowPixelSpacing || 1;
+        const colSpc = image.columnPixelSpacing || 1;
+        const isCalibrated = !!image.rowPixelSpacing;
 
-            const res = await fetch("http://localhost:8001/predict", { method: "POST", body: formData });
-            const data = await res.json();
+        all.forEach(m => {
+            const p1 = cornerstone.pixelToCanvas(element, m.points[0]);
+            const p2 = cornerstone.pixelToCanvas(element, m.points[1]);
+
+            mCtx.strokeStyle = isCalibrated ? "#10b981" : "#f59e0b";
+            mCtx.fillStyle = mCtx.strokeStyle;
+            mCtx.lineWidth = 2;
+
+            // Draw Line
+            mCtx.beginPath();
+            if (!isCalibrated) mCtx.setLineDash([5, 5]);
+            mCtx.moveTo(p1.x, p1.y);
+            mCtx.lineTo(p2.x, p2.y);
+            mCtx.stroke();
+            mCtx.setLineDash([]);
+
+            // Measurement Calculation
+            const dx = (m.points[1].x - m.points[0].x) * colSpc;
+            const dy = (m.points[1].y - m.points[0].y) * rowSpc;
+            const dist = Math.sqrt(dx*dx + dy*dy);
             
-            resDiv.innerHTML = Object.entries(data.all_predictions)
-                .map(([k, v]) => `<div style="margin-bottom:10px; padding:10px; background:#27272a; border-radius:4px;">
-                    <div style="font-weight:bold">${k}</div>
-                    <div style="color:${v.positive ? '#ef4444' : '#10b981'}">${(v.probability*100).toFixed(1)}% Sure</div>
-                </div>`).join('');
-        } catch (e) {
-            resDiv.innerHTML = "AI Server Unreachable.";
-        }
+            const label = dist.toFixed(2) + (isCalibrated ? " mm" : " px (Approx)");
+            mCtx.font = "bold 12px Inter";
+            mCtx.fillText(label, p2.x + 10, p2.y + 10);
+
+            // Handle Angle Tool (3 points)
+            if (m.type === 'Angle' && m.points[2]) {
+                const p3 = cornerstone.pixelToCanvas(element, m.points[2]);
+                mCtx.lineTo(p3.x, p3.y);
+                mCtx.stroke();
+                
+                // Angle Math
+                const angle = calculateAngle(m.points[0], m.points[1], m.points[2]);
+                mCtx.fillText(angle.toFixed(1) + "°", p2.x - 20, p2.y - 10);
+            }
+        });
     }
 
-    // Prevent browser context menu on right click (so Zoom works)
+    function calculateAngle(p1, p2, p3) {
+        const d12 = Math.sqrt(Math.pow(p1.x-p2.x,2) + Math.pow(p1.y-p2.y,2));
+        const d23 = Math.sqrt(Math.pow(p2.x-p3.x,2) + Math.pow(p2.y-p3.y,2));
+        const d13 = Math.sqrt(Math.pow(p1.x-p3.x,2) + Math.pow(p1.y-p3.y,2));
+        return Math.acos((d12*d12 + d23*d23 - d13*d13) / (2*d12*d23)) * (180 / Math.PI);
+    }
+
+    // --- DIY MOUSE LOGIC ---
+    element.addEventListener('mousedown', (e) => {
+        const rect = element.getBoundingClientRect();
+        const canvasPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const pixelPos = cornerstone.canvasToPixel(element, canvasPos);
+
+        if (activeTool === 'Length') {
+            currentM = { type: 'Length', points: [pixelPos, pixelPos] };
+        } else if (activeTool === 'Angle') {
+            if (!currentM) {
+                currentM = { type: 'Angle', points: [pixelPos, pixelPos, pixelPos] };
+            } else {
+                // Angle needs 3 clicks: Start, Vertex, End
+                currentM.points[2] = pixelPos;
+                measurements.push(currentM);
+                currentM = null;
+                drawAll();
+                return;
+            }
+        }
+        
+        isDragging = true;
+        lastMousePos = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const rect = element.getBoundingClientRect();
+        const canvasPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const pixelPos = cornerstone.canvasToPixel(element, canvasPos);
+
+        if (currentM) {
+            // Update active drawing
+            if (activeTool === 'Length') currentM.points[1] = pixelPos;
+            if (activeTool === 'Angle') currentM.points[1] = pixelPos;
+            drawAll();
+            return;
+        }
+
+        // Standard DIY Tools
+        const deltaX = e.clientX - lastMousePos.x;
+        const deltaY = e.clientY - lastMousePos.y;
+        lastMousePos = { x: e.clientX, y: e.clientY };
+
+        const vp = cornerstone.getViewport(element);
+        if (activeTool === 'Zoom' || e.buttons === 2) {
+            vp.scale += (deltaY * -0.005);
+        } else if (activeTool === 'Pan') {
+            vp.translation.x += (deltaX / vp.scale);
+            vp.translation.y += (deltaY / vp.scale);
+        } else if (activeTool === 'Wwwc') {
+            vp.voi.windowWidth += (deltaX * 4);
+            vp.voi.windowCenter += (deltaY * 4);
+        }
+        cornerstone.setViewport(element, vp);
+        drawAll(); // Keep measurements pinned
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (activeTool === 'Length' && currentM) {
+            measurements.push(currentM);
+            currentM = null;
+        }
+        isDragging = false;
+        drawAll();
+    });
+
+    element.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const vp = cornerstone.getViewport(element);
+        vp.scale *= (e.deltaY > 0 ? 0.9 : 1.1);
+        cornerstone.setViewport(element, vp);
+        drawAll();
+    }, { passive: false });
+
+    // --- UI ---
+    // --- TOOL LOGIC ---
+    function switchTool(name) {
+        activeTool = name;
+        
+        // 1. Update UI Buttons
+        document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+        const btn = document.getElementById(`btn-${name}`);
+        if (btn) btn.classList.add('active');
+
+        // 2. Change Cursor
+        element.style.cursor = TOOL_CONFIG[name].cursor;
+        
+        log(`Tool: ${name} (Press '${TOOL_CONFIG[name].key.toUpperCase()}' to shortcut)`);
+    }
+
+    // --- IMAGE MANIPULATION ---
+    function invertImage() {
+        const viewport = cornerstone.getViewport(element);
+        viewport.invert = !viewport.invert; // Simple toggle
+        cornerstone.setViewport(element, viewport);
+        log(`Image Inverted: ${viewport.invert}`);
+    }
+
+    function resetImage() { 
+        measurements = []; 
+        cornerstone.reset(element); 
+        drawAll(); 
+    }
+
+    const imageId = `wadouri:http://localhost:5266/api/Radiologist/DownloadDicom?instanceId=${new URLSearchParams(window.location.search).get("instanceId") || "TEST"}`;
+    cornerstone.loadAndCacheImage(imageId).then(img => {
+        cornerstone.displayImage(element, img);
+        resizeOverlay();
+        lucide.createIcons();
+    });
+
     element.oncontextmenu = (e) => e.preventDefault();
 </script>
+
+<script src="../js/radiologist_reporting.js"></script>
+
+<div id="printSection" style="display:none;">
+    <div style="text-align: center; border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 20px;">
+        <h1 style="margin: 0; font-size: 20pt;">RADIOLOGY DIAGNOSTIC REPORT</h1>
+        <p style="margin: 5px 0; font-size: 10pt;">Report ID: <span id="p-ReportIdentifier"></span></p>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <tr>
+            <td style="font-weight:bold; width: 120px;">Patient Name:</td><td id="p-PatientName"></td>
+            <td style="font-weight:bold; width: 100px;">Accession No:</td><td id="p-AccessionNumber"></td>
+        </tr>
+        <tr>
+            <td style="font-weight:bold;">Patient ID:</td><td id="p-PatientIdentifier"></td>
+            <td style="font-weight:bold;">Modality:</td><td id="p-Modality"></td>
+        </tr>
+        <tr>
+            <td style="font-weight:bold;">DOB / Sex:</td><td><span id="p-PatientDOB"></span> / <span id="p-PatientSex"></span></td>
+            <td style="font-weight:bold;">Study Desc:</td><td id="p-StudyDescription"></td>
+        </tr>
+    </table>
+
+    <div style="margin-bottom: 15px;">
+        <h3 style="font-size: 13pt; border-bottom: 1px solid #000;">CLINICAL HISTORY</h3>
+        <p id="p-ClinicalHistory" style="margin-top: 5px;"></p>
+    </div>
+
+    <div style="margin-bottom: 15px;">
+        <h3 style="font-size: 13pt; border-bottom: 1px solid #000;">FINDINGS</h3>
+        <p id="p-Findings" style="margin-top: 5px; line-height: 1.4;"></p>
+    </div>
+
+    <div style="margin-bottom: 15px;">
+        <h3 style="font-size: 13pt; border-bottom: 1px solid #000;">IMPRESSION</h3>
+        <p id="p-Impression" style="margin-top: 5px; font-weight: bold;"></p>
+    </div>
+
+    <div style="margin-bottom: 20px; background: #f9f9f9; padding: 10px; border: 1px solid #ddd;">
+        <h3 style="font-size: 11pt; margin-top: 0;">AI ANALYSIS (TOP 5 FINDINGS)</h3>
+        <p id="p-AiSuggestion" style="font-size: 10pt; font-style: italic; margin: 0;"></p>
+    </div>
+
+    <div id="p-Footer-Container" style="margin-top: 100px; border-top: 1.5px solid #000; padding-top: 10px;">
+        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+            <tr>
+                <td style="vertical-align: top; padding-right: 15px;">
+                    <div style="font-size: 9pt; font-weight: bold; color: #333; margin-bottom: 0;">GENERATED BY:</div>
+                    <div id="p-GeneratedBy" style="font-size: 11pt; font-weight: bold; line-height: 1.1;">---</div>
+                    <div id="p-GeneratedAt" style="font-size: 9pt; color: #555; line-height: 1.1; margin-bottom: 4px;">---</div>
+                    <div style="border-top: 1px solid black; width: 90%;">
+                    </div>
+                </td>
+
+                <td style="vertical-align: top; padding-left: 15px;">
+                    <div style="font-size: 9pt; font-weight: bold; color: #333; margin-bottom: 0;">FINALIZED BY:</div>
+                    <div id="p-FinalizedBy" style="font-size: 11pt; font-weight: bold; line-height: 1.1;">---</div>
+                    <div id="p-FinalizedAt" style="font-size: 9pt; color: #555; line-height: 1.1; margin-bottom: 4px;">---</div>
+                    <div style="border-top: 1px solid black; width: 90%;">
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <div style="margin-top: 15px; text-align: center; font-size: 7pt; color: #aaa; letter-spacing: 1px;">
+            THIS DOCUMENT IS ELECTRONICALLY VALIDATED AND ARCHIVED IN SMARTPACS
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

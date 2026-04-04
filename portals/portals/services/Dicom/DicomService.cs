@@ -17,6 +17,9 @@ public class PatientData
     public string StudyType { get; set; } = "CR";
     public string BodyPart { get; set; } = "CHEST";
     public string ViewPosition { get; set; } = "PA";
+    
+    public string AccessionNumber { get; set; } 
+    public string StudyID { get; set; }
 }
 
 public class DicomService : IDicomService
@@ -59,7 +62,9 @@ public class DicomService : IDicomService
             { DicomTag.BitsAllocated, (ushort)8 },
             { DicomTag.BitsStored, (ushort)8 },
             { DicomTag.HighBit, (ushort)7 },
-            { DicomTag.PixelRepresentation, (ushort)0 }
+            { DicomTag.PixelRepresentation, (ushort)0 },
+            { DicomTag.StudyID, patient.StudyID },
+            { DicomTag.AccessionNumber, patient.AccessionNumber },
         };
 
         ds.AddOrUpdate(new DicomOtherByte(DicomTag.PixelData, pixels));

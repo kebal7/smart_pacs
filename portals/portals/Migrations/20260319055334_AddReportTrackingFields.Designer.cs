@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using portals.Data;
@@ -11,9 +12,11 @@ using portals.Data;
 namespace portals.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260319055334_AddReportTrackingFields")]
+    partial class AddReportTrackingFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -277,14 +280,7 @@ namespace portals.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AccessionNumber")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("AiSuggestion")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ClinicalHistory")
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
@@ -294,18 +290,14 @@ namespace portals.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("FinalizedBy")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Findings")
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("GeneratedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("GeneratedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Impression")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("InstanceNumber")
@@ -315,34 +307,15 @@ namespace portals.Migrations
                     b.Property<bool>("IsFinalized")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("Modality")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("OtherNote")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PatientDOB")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("PatientIdentifier")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("PatientName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PatientSex")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("ReportIdentifier")
                         .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("StudyDescription")
                         .HasColumnType("text");
 
                     b.Property<string>("StudyIdentifier")

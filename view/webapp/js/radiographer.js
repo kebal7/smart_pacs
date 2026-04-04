@@ -1,12 +1,11 @@
-//import { apiFetch } from './api.js';
-//import { requireAuth } from './auth.js';
-
-//requireAuth(); // ensure user is logged in
-
-// portal.js
+/**
+ * SmartPACS - Radiographer Portal Logic
+ * Handles: Auto-ID generation, Patient Lookup, Image Acquisition, 
+ * DICOM Conversion, and Report Database Integration.
+ */
 
 // -------------------------------
-//  Dummy Images List
+//  State Management
 // -------------------------------
 const dummyImages = [
     '../resources/dummy_image/test1.png',
@@ -15,167 +14,189 @@ const dummyImages = [
     '../resources/dummy_image/test4.png'
 ];
 
-let currentDicom = null;
 let currentImageFile = null;
-let currentImagePath = null;
-
+// We will now use the hidden input #studyId instead of a loose global variable 
+// to ensure it stays in sync with the form.
 
 // -------------------------------
-//  Fill Dummy Patient Data
+//  Initialization
 // -------------------------------
-function fillDummyData() {
-    document.getElementById('patientId').value = `PAT-${Math.floor(Math.random() * 90000 + 10000)}`;
-    document.getElementById('accessionNo').value = `ACC-${Math.floor(Math.random() * 90000 + 10000)}`;
-    document.getElementById('patientName').value = 'John Doe';
-    document.getElementById('patientDOB').value = '1990-01-01';
-    document.getElementById('patientSex').value = 'M';
-    document.getElementById('studyType').value = 'CR';
+document.addEventListener('DOMContentLoaded', () => {
+    generateNewStudyIds();
+    setupListeners();
+});
+
+function setupListeners() {
+    document.getElementById('patientId').addEventListener('blur', lookupPatient);
+    document.getElementById('fileInput').addEventListener('change', handleManualUpload);
+    document.getElementById('acquireBtn').addEventListener('click', simulateAcquisition);
+    document.getElementById('uploadDicomBtn').addEventListener('click', uploadToPACS);
+    document.getElementById('fillDummyBtn').addEventListener('click', fillDummyData);
+    document.getElementById('clearFieldsBtn').addEventListener('click', clearEverything);
 }
 
+// -------------------------------
+//  ID Generation & Patient Lookup
+// -------------------------------
+
+async function generateNewStudyIds() {
+    try {
+        const response = await fetch('http://localhost:5266/api/Radiographer/generate-ids');
+        if (response.ok) {
+            const data = await response.json();
+            // REQUIRED: Update both visible Accession and hidden StudyID
+            document.getElementById('accessionNo').value = data.accessionNo;
+            document.getElementById('studyId').value = data.studyId; 
+            
+            console.log(`IDs Synced: Accession: ${data.accessionNo}, StudyID: ${data.studyId}`);
+        }
+    } catch (err) {
+        console.error("Failed to generate IDs:", err);
+    }
+}
+
+async function lookupPatient(event) {
+    const patientId = event.target.value.trim();
+    if (!patientId) return;
+
+    try {
+        const response = await fetch(`http://localhost:5266/api/Radiographer/patient-lookup/${patientId}`);
+        if (response.ok) {
+            const patient = await response.json();
+            
+            document.getElementById('patientName').value = patient.name;
+            
+            // REQUIRED FIX: Ensure the dropdown selects correctly
+            // Maps "Male" to "M", "Female" to "F", etc.
+            const sexValue = (patient.sex || "O").charAt(0).toUpperCase();
+            document.getElementById('patientSex').value = sexValue;
+            
+            if (patient.dateOfBirth) {
+                document.getElementById('patientDOB').value = patient.dateOfBirth.split('T')[0];
+            }
+            
+            console.log("Patient record found and loaded.");
+        } else {
+            console.warn("Patient not found in database. Proceeding as new/emergency.");
+        }
+    } catch (err) {
+        console.error("Error during patient lookup:", err);
+    }
+}
 
 // -------------------------------
-//  Image Preview Helper
+//  Image Handling
 // -------------------------------
-function updatePreview(path) {
+
+function updatePreview(source) {
     const img = document.getElementById('preview');
-    if (!img) return console.error("Preview element missing!");
+    if (!img) return;
 
-    if (!path) {
-        img.style.display = 'none';
-        img.src = "";
+    if (!source) {
+        img.src = "https://via.placeholder.com/300x300?text=No+Image+Loaded";
         return;
     }
-
-    img.src = path;
-    img.style.display = 'block';
+    img.src = source;
 }
 
-
-// -------------------------------
-//  Handle Manual Image Upload
-// -------------------------------
-const fileInput = document.getElementById("fileInput");
-
-fileInput.addEventListener("change", (event) => {
+function handleManualUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     currentImageFile = file;
-
     const reader = new FileReader();
     reader.onload = (e) => updatePreview(e.target.result);
     reader.readAsDataURL(file);
+}
 
-    alert(`Image "${file.name}" loaded!`);
-});
-
-
-// -------------------------------
-//  Simulate X-ray Acquisition
-// -------------------------------
-document.getElementById('acquireBtn').addEventListener('click', async () => {
+async function simulateAcquisition() {
     const randomIndex = Math.floor(Math.random() * dummyImages.length);
     const path = dummyImages[randomIndex];
 
-    const response = await fetch(path);
-    const blob = await response.blob();
-
-    currentImageFile = new File([blob], path.split("/").pop(), { type: blob.type });
-
-    updatePreview(URL.createObjectURL(blob));
-    alert("Simulated X-Ray acquired!");
-});
-
+    try {
+        const response = await fetch(path);
+        const blob = await response.blob();
+        
+        currentImageFile = new File([blob], path.split("/").pop(), { type: blob.type });
+        
+        updatePreview(URL.createObjectURL(blob));
+        alert("Simulated X-Ray acquisition complete!");
+    } catch (err) {
+        console.error("Acquisition simulation failed:", err);
+    }
+}
 
 // -------------------------------
-//  Generate Simulated DICOM
+//  PACS Upload & Database Integration
 // -------------------------------
-document.getElementById('uploadDicomBtn').addEventListener('click', async () => {
 
-    if (!currentImageFile) {
-        alert("Please upload an image first!");
+async function uploadToPACS() {
+    // Check both manual upload and simulated acquisition
+    const fileToUpload = currentImageFile || document.getElementById('fileInput').files[0];
+
+    if (!fileToUpload) {
+        alert("Please acquire or upload an image first.");
+        return;
+    }
+
+    const patientId = document.getElementById('patientId').value;
+    if (!patientId) {
+        alert("Patient ID is required.");
         return;
     }
 
     const formData = new FormData();
-
-    formData.append("PatientID", document.getElementById('patientId').value);
+    formData.append("PatientID", patientId);
     formData.append("PatientName", document.getElementById('patientName').value);
     formData.append("PatientDOB", document.getElementById('patientDOB').value);
     formData.append("PatientSex", document.getElementById('patientSex').value);
     formData.append("StudyType", document.getElementById('studyType').value);
-    formData.append("ImageFile", currentImageFile);
+    formData.append("AccessionNo", document.getElementById('accessionNo').value);
+    // REQUIRED: Get StudyID from the hidden field
+    formData.append("StudyID", document.getElementById('studyId').value);
+    formData.append("ImageFile", fileToUpload);
 
     try {
-
-        const response = await fetch("http://localhost:5266/Radiographer/UploadDicom", {
+        const response = await fetch("http://localhost:5266/api/Radiographer/upload-to-pacs", {
             method: "POST",
             body: formData
         });
 
         if (!response.ok) {
-            const text = await response.text();
-            alert("Upload failed: " + text);
-            return;
+            const errorText = await response.text();
+            throw new Error(errorText);
         }
 
         const result = await response.json();
-
-        currentDicom = result.filePath;
-
-        alert("DICOM created successfully!");
-
-        console.log("Server response:", result);
+        alert(`Success!\nReport: ${result.reportId}\nInstance: ${result.instanceId}`);
+        
+        // REQUIRED: Reset and generate FRESH IDs for the next patient
+        clearEverything();
+        generateNewStudyIds();
 
     } catch (err) {
-        console.error(err);
-        alert("Error uploading DICOM");
+        console.error("Upload Error:", err);
+        alert("Failed to upload DICOM to PACS: " + err.message);
     }
-
-});
-
+}
 
 // -------------------------------
-//  Download Simulated DICOM
+//  Helpers & UI
 // -------------------------------
-document.getElementById('downloadDicomBtn').addEventListener('click', () => {
-    if (!currentDicom) {
-        alert("No DICOM available for download!");
-        return;
-    }
 
-    const blob = new Blob([currentDicom], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+function fillDummyData() {
+    document.getElementById('patientId').value = `PAT-${Math.floor(Math.random() * 90000 + 10000)}`;
+    document.getElementById('patientName').value = 'Test Patient';
+    document.getElementById('patientDOB').value = '1985-05-20';
+    document.getElementById('patientSex').value = 'M';
+    document.getElementById('studyType').value = 'CR';
+}
 
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'simulated_dicom.json';
-    a.click();
-
-    URL.revokeObjectURL(url);
-});
-
-
-// -------------------------------
-//  Clear Everything
-// -------------------------------
-document.getElementById('clearFieldsBtn').addEventListener('click', () => {
+function clearEverything() {
     document.getElementById('patientForm').reset();
     document.getElementById('fileInput').value = "";
-    currentDicom = null;
     currentImageFile = null;
-    currentImagePath = null;
-
     updatePreview(null);
-
-    alert("Form and image preview cleared!");
-});
-
-
-// -------------------------------
-//  Fill Dummy Button
-// -------------------------------
-document.getElementById('fillDummyBtn').addEventListener('click', () => {
-    fillDummyData();
-    alert("Dummy patient info filled!");
-});
+    // Refresh IDs so the next patient doesn't get the cleared one
+    generateNewStudyIds();
+}

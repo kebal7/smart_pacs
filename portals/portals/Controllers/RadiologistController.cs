@@ -2,15 +2,26 @@ using Microsoft.AspNetCore.Mvc;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using portals.Data;
 
-namespace portals.Controllers
-{
+namespace portals.Controllers;
+
+    [ApiController]
+    [Route("api/[controller]")]
     public class RadiologistController : Controller
     {
         private readonly string orthancUrl = "http://localhost:8042";
         private readonly string orthancUser = "orthanc";
         private readonly string orthancPassword = "orthanc";
 
+        private readonly ApplicationDbContext _context;
+        
+        public RadiologistController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+        
         private HttpClient CreateClient()
         {
             var client = new HttpClient();
@@ -39,6 +50,8 @@ namespace portals.Controllers
             var instanceIds = await response.Content.ReadAsStringAsync();
             return Content(instanceIds, "application/json");
         }
+        
+        
 
         // GET: /Radiologist/GetDicomMetadata?instanceId=xxx
         [HttpGet]
@@ -54,8 +67,7 @@ namespace portals.Controllers
         }
 
         // GET: /Radiologist/DownloadDicom?instanceId=xxx
-        // GET: /Radiologist/DownloadDicom?instanceId=xxx
-        [HttpGet]
+        [HttpGet("DownloadDicom")]
         public async Task<IActionResult> DownloadDicom(string instanceId)
         {
             using var client = CreateClient();
@@ -85,5 +97,116 @@ namespace portals.Controllers
             // 3. Return file to browser
             return File(bytes, "application/dicom", fileName);
         }
+        
+        [HttpGet("GetWorklist")]
+        public async Task<IActionResult> GetWorklist()
+        {
+            // Fetch directly from Reports
+            var worklist = await _context.Reports
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new
+                {
+                    r.InstanceNumber,
+                    r.ReportIdentifier,
+                    r.PatientIdentifier,
+                    r.PatientName,
+                    r.Modality,
+                    r.CreatedAt,
+                    r.AiSuggestion,
+                    r.IsFinalized,
+                    r.Findings,
+                    // Calculate a status string for the UI
+                    Status = r.IsFinalized ? "Finalized" : 
+                        (!string.IsNullOrEmpty(r.Findings) ? "Draft" : "New")
+                })
+                .ToListAsync();
+
+            return Ok(worklist);
+        }
+        
+        // Inside RadiologistController.cs
+
+        [HttpPost("UpdateReport")]
+        public async Task<IActionResult> UpdateReport([FromBody] UpdateReportRequest model)
+        {
+            var report = await _context.Reports.FirstOrDefaultAsync(r => r.InstanceNumber == model.InstanceId);
+            if (report == null) return NotFound("Report not found.");
+            if (report.IsFinalized) return BadRequest("Report is finalized Cannot Update Report.");
+            report.StudyDescription = model.StudyDescription;
+            report.ClinicalHistory = model.ClinicalHistory;
+            report.Findings = model.Findings;
+            report.Impression = model.Impression;
+            report.OtherNote = model.OtherNote;
+    
+            if (!string.IsNullOrEmpty(model.AiSuggestion)) 
+            {
+                report.AiSuggestion = model.AiSuggestion;
+            }
+
+            // 2. Logic: Define "Draft" vs "Finalized"
+            if (model.ShouldFinalize)
+            {
+                report.IsFinalized = true;
+                report.FinalizedAt = DateTime.UtcNow;
+                report.FinalizedBy = "Dr. Senior User"; // Replace with real Auth later
+            }
+            else 
+            {
+                // This is a "Save Draft" action
+                report.IsFinalized = false; 
+                report.GeneratedBy = "Dr. Junior User";
+                report.GeneratedAt = DateTime.UtcNow; // Mark that work has started
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = report.IsFinalized ? "Finalized!" : "Draft Saved!" });
+        }
+
+        public class UpdateReportRequest
+        {
+            public string InstanceId { get; set; } // Matches JS InstanceId
+            public string StudyDescription { get; set; }
+            public string ClinicalHistory { get; set; }
+            public string Findings { get; set; }
+            public string Impression { get; set; }
+            public string OtherNote { get; set; }
+            public string AiSuggestion { get; set; }
+            public bool ShouldFinalize { get; set; } // Matches JS ShouldFinalize
+        }
+        
+        // Add this to RadiologistController.cs
+
+        [HttpGet("GetReport")]
+        public async Task<IActionResult> GetReport(string instanceId)
+        {
+            // Search by the Orthanc Instance UID
+            var report = await _context.Reports
+                .FirstOrDefaultAsync(r => r.InstanceNumber == instanceId);
+
+            if (report == null) return NotFound();
+
+            // Return EVERYTHING so the UI can repopulate
+            return Ok(new
+            {
+                studyDescription = report.StudyDescription,
+                clinicalHistory = report.ClinicalHistory,
+                findings = report.Findings,
+                impression = report.Impression,
+                otherNote = report.OtherNote,
+                aiSuggestion = report.AiSuggestion,
+                isFinalized = report.IsFinalized
+            });
+        }
+        
+        [HttpGet("GetPrintingReport")]
+        public async Task<IActionResult> GetPrintingReport(string instanceId)
+        {
+            var report = await _context.Reports
+                .FirstOrDefaultAsync(r => r.InstanceNumber == instanceId);
+
+            if (report == null) return NotFound("Report record missing.");
+
+            // Return every single field for the print template
+            return Ok(report); 
+        }
     }
-}

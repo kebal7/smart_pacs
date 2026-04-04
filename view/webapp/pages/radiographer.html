@@ -238,9 +238,12 @@
                         </div>
 
                         <div>
-                            <label for="accessionNo">Accession No.</label>
-                            <input type="text" id="accessionNo" placeholder="ACC-123">
+                            <label for="accessionNo">Accession No. (Read-Only)</label>
+                            <input type="text" id="accessionNo" readonly placeholder="Generating..." 
+                                style="background-color: #f1f5f9; cursor: not-allowed; font-weight: 600;">
                         </div>
+
+                        <input type="hidden" id="studyId">
 
                         <div>
                             <label for="patientDOB">Date of Birth</label>
