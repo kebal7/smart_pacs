@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using portals.Data;
@@ -11,9 +12,11 @@ using portals.Data;
 namespace portals.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260409074604_AddTreatmentManagement")]
+    partial class AddTreatmentManagement
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -294,35 +297,6 @@ namespace portals.Migrations
                     b.ToTable("ClinicalCases");
                 });
 
-            modelBuilder.Entity("portals.Models.ClinicalNote", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AuthoredBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("CaseId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("NoteText")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CaseId");
-
-                    b.ToTable("ClinicalNote");
-                });
-
             modelBuilder.Entity("portals.Models.LabReport", b =>
                 {
                     b.Property<int>("Id")
@@ -396,11 +370,8 @@ namespace portals.Migrations
                     b.Property<int>("CaseId")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("DiscontinuedDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DiscontinuedReason")
-                        .HasColumnType("text");
+                    b.Property<int?>("ClinicalCaseId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Dosage")
                         .IsRequired()
@@ -417,12 +388,9 @@ namespace portals.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTime>("PrescribedDate")
-                        .HasColumnType("timestamp with time zone");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("CaseId");
+                    b.HasIndex("ClinicalCaseId");
 
                     b.ToTable("Medications");
                 });
@@ -489,6 +457,9 @@ namespace portals.Migrations
                     b.Property<int>("CaseId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("ClinicalCaseId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("RecordedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -496,15 +467,15 @@ namespace portals.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<float>("SpO2")
-                        .HasColumnType("real");
+                    b.Property<double>("SpO2")
+                        .HasColumnType("double precision");
 
-                    b.Property<float>("Temperature")
-                        .HasColumnType("real");
+                    b.Property<double>("Temperature")
+                        .HasColumnType("double precision");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CaseId");
+                    b.HasIndex("ClinicalCaseId");
 
                     b.ToTable("Vitals");
                 });
@@ -704,37 +675,18 @@ namespace portals.Migrations
                         .HasForeignKey("ClinicalCaseId");
                 });
 
-            modelBuilder.Entity("portals.Models.ClinicalNote", b =>
-                {
-                    b.HasOne("portals.Models.ClinicalCase", "ClinicalCase")
-                        .WithMany("Notes")
-                        .HasForeignKey("CaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ClinicalCase");
-                });
-
             modelBuilder.Entity("portals.Models.Medication", b =>
                 {
-                    b.HasOne("portals.Models.ClinicalCase", "ClinicalCase")
+                    b.HasOne("portals.Models.ClinicalCase", null)
                         .WithMany("Medications")
-                        .HasForeignKey("CaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ClinicalCase");
+                        .HasForeignKey("ClinicalCaseId");
                 });
 
             modelBuilder.Entity("portals.Models.PatientVital", b =>
                 {
-                    b.HasOne("portals.Models.ClinicalCase", "ClinicalCase")
+                    b.HasOne("portals.Models.ClinicalCase", null)
                         .WithMany("Vitals")
-                        .HasForeignKey("CaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ClinicalCase");
+                        .HasForeignKey("ClinicalCaseId");
                 });
 
             modelBuilder.Entity("portals.Models.TimelineEvent", b =>
@@ -753,8 +705,6 @@ namespace portals.Migrations
                     b.Navigation("LinkedRecords");
 
                     b.Navigation("Medications");
-
-                    b.Navigation("Notes");
 
                     b.Navigation("Vitals");
                 });

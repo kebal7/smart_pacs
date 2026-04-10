@@ -33,7 +33,14 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllersWithViews();
-builder.Services.AddControllers();
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // This stops the "Circular Reference" error that prevents nested lists from loading
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 
 var key = Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]);
 

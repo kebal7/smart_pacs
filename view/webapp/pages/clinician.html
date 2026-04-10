@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPACS | Patient Portal</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --primary: #0f172a;
+            --accent: #2563eb;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        h1::before {
+            content: '';
+            width: 12px;
+            height: 24px;
+            background: var(--accent);
+            border-radius: 4px;
+        }
+
+        /* Layout */
+        .portal-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+            height: calc(100vh - 120px);
+        }
+
+        /* Sidebar */
+        .patient-sidebar {
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-header h2 {
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+
+        .sidebar-header input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .sidebar-header input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .patient-list-item {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .patient-list-item:hover {
+            background: #f8fafc;
+        }
+
+        .patient-list-item.active {
+            background: #eff6ff;
+            border-left: 4px solid var(--accent);
+        }
+
+        /* Right pane */
+        .details-pane {
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .demo-item label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: block;
+        }
+
+        .demo-item span {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-finalized {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        /* Timeline */
+        .timeline-container {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline-container::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: -30px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 3px solid white;
+            box-shadow: 0 0 0 1px var(--border);
+        }
+
+        .timeline-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .timeline-date {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .view-link {
+            text-decoration: none;
+            font-size: 0.8rem;
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        .view-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="dashboard-container">
+    <h1>Patient Timeline</h1>
+
+    <div class="portal-container">
+
+        <div class="patient-sidebar">
+            <div class="sidebar-header">
+                <h2>Patients</h2>
+                <input type="text" id="patientSearch" placeholder="Search Patients...">
+            </div>
+
+            <div id="patientListContainer" style="overflow-y:auto; flex-grow:1;"></div>
+        </div>
+
+        <div class="details-pane" id="detailsPane">
+            <div style="text-align:center; margin-top:100px; color:var(--text-muted);">
+                <h3>Select a patient to view history</h3>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="labReportModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1000; overflow-y:auto; backdrop-filter: blur(4px);">
+    <div style="background:white; max-width:800px; margin:50px auto; padding:40px; border-radius:12px; position:relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+        <button onclick="closeLabModal()" style="position:absolute; right:20px; top:20px; border:none; background:#f1f5f9; width:32px; height:32px; border-radius:50%; cursor:pointer; font-weight:bold;">&times;</button>
+        
+        <div id="printableLabArea">
+            <div style="text-align:center; border-bottom:2px solid #000; padding-bottom:15px; margin-bottom:25px;">
+                <h2 style="margin:0; letter-spacing: 1px;">LABORATORY DIAGNOSTIC REPORT</h2>
+                <p id="lab-ReportID" style="color:#64748b; margin:5px 0; font-family: monospace;"></p>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:30px; font-size:0.95rem; background:#f8fafc; padding:20px; border-radius:8px;">
+                <div><strong>Patient Name:</strong> <span id="lab-Name"></span></div>
+                <div><strong>Collection Date:</strong> <span id="lab-Date"></span></div>
+                <div><strong>Patient ID:</strong> <span id="lab-PID"></span></div>
+                <div><strong>Sex / DOB:</strong> <span id="lab-Sex"></span> / <span id="lab-DOB"></span></div>
+            </div>
+
+            <table style="width:100%; border-collapse:collapse; margin-top:20px;">
+                <thead>
+                    <tr style="background:#0f172a; color:white;">
+                        <th style="text-align:left; padding:12px; border-radius: 4px 0 0 0;">Test Name</th>
+                        <th style="text-align:center; padding:12px;">Result</th>
+                        <th style="text-align:center; padding:12px;">Reference Range</th>
+                        <th style="text-align:center; padding:12px; border-radius: 0 4px 0 0;">Interpretation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td id="lab-Test" style="padding:20px; border-bottom:1px solid #e2e8f0; font-weight:600; color:#1e293b;"></td>
+                        <td id="lab-Value" style="padding:20px; border-bottom:1px solid #e2e8f0; text-align:center; font-size:1.2rem; font-weight:bold;"></td>
+                        <td id="lab-Range" style="padding:20px; border-bottom:1px solid #e2e8f0; text-align:center; color:#64748b;"></td>
+                        <td id="lab-Interp" style="padding:20px; border-bottom:1px solid #e2e8f0; text-align:center; font-weight:bold;"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top:40px; display:flex; gap:10px;">
+            <button onclick="window.print()" style="background:#2563eb; color:white; border:none; padding:12px 24px; border-radius:8px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:8px;">
+                🖨️ Print Official Report
+            </button>
+            <button onclick="closeLabModal()" style="background:#f1f5f9; color:#475569; border:none; padding:12px 24px; border-radius:8px; cursor:pointer; font-weight:600;">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let patients = [];
+
+async function initPortal() {
+    try {
+        const res = await fetch('http://localhost:5266/api/Clinician/Patients'); 
+        const data = await res.json();
+        // Standardize keys in case backend uses patientName or name
+        patients = data.map(p => ({
+            patientIdentifier: p.patientIdentifier,
+            patientName: p.patientName || p.name
+        }));
+        renderPatientList();
+    } catch (error) {
+        console.error("Failed to load patient list:", error);
+    }
+}
+
+function renderPatientList() {
+    const container = document.getElementById('patientListContainer');
+    container.innerHTML = patients.map(p => `
+        <div class="patient-list-item" onclick="selectPatient('${p.patientIdentifier}')">
+            <div style="font-weight:600;">${p.patientName}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">${p.patientIdentifier}</div>
+        </div>
+    `).join('');
+}
+
+async function selectPatient(patientId) {
+    try {
+        const [demoRes, historyRes] = await Promise.all([
+            fetch(`http://localhost:5266/api/Clinician/PatientDemographics/${patientId}`),
+            fetch(`http://localhost:5266/api/Clinician/PatientHistory/${patientId}`)
+        ]);
+
+        if (!demoRes.ok || !historyRes.ok) throw new Error("Data retrieval failed");
+        
+        const demo = await demoRes.json();
+        const history = await historyRes.json();
+
+        // Highlight active patient in sidebar
+        document.querySelectorAll('.patient-list-item').forEach(el => {
+            el.classList.toggle('active', el.innerText.includes(patientId));
+        });
+
+        const pane = document.getElementById('detailsPane');
+        pane.innerHTML = `
+            <div class="card">
+                <div style="display:flex; justify-content:space-between;">
+                    <div>
+                        <h2 style="margin:0;">${demo.name}</h2>
+                        <p style="color:var(--accent); font-weight:600; margin:4px 0;">${demo.patientIdentifier}</p>
+                    </div>
+                    <span class="status-badge status-finalized">Active Case</span>
+                </div>
+
+                <div class="demo-grid">
+                    <div class="demo-item">
+                        <label>Date of Birth</label>
+                        <span>${new Date(demo.dateOfBirth).toLocaleDateString('en-GB')} (${demo.age} Yrs)</span>
+                    </div>
+                    <div class="demo-item">
+                        <label>Contact</label>
+                        <span>${demo.contactNo || 'Not Provided'}</span>
+                    </div>
+                    <div class="demo-item">
+                        <label>Emergency Contact</label>
+                        <span>${demo.emergencyContact || 'Not Provided'}</span>
+                    </div>
+                    <div class="demo-item" style="grid-column: span 2;">
+                        <label>Residential Address</label>
+                        <span>${demo.address || 'N/A'}</span>
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin:20px 0; display:flex; align-items:center; gap:8px;">
+                Clinical Timeline <span style="font-size:0.9rem; background:#e2e8f0; padding:2px 8px; border-radius:10px;">${history.length} Events</span>
+            </h3>
+
+            <div class="timeline-container">
+            ${history.map(item => {
+            
+            const isRadiology = item.sourceTable === 'reports';
+            const isLab = item.sourceTable === 'lab_reports';
+            const hasViewer = isRadiology && item.instanceId;
+
+            return `
+            <div class="timeline-item">
+                <div class="timeline-dot" style="background: ${isRadiology ? 'var(--accent)' : '#10b981'}"></div>
+                <div class="timeline-card">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div>
+                            <div class="timeline-date">
+                                ${isRadiology ? '🩻 RADIOLOGY' : '🧪 LABORATORY'} • 
+                                ${new Date(item.eventDate).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                            </div>
+                            <div style="font-weight:600; color:var(--primary); font-size:1rem;">
+                                ${isLab ? 'Lab: ' + (item.description || 'Test Result') : item.eventType + ' (' + item.modality + ')'}
+                            </div>
+                        </div>
+                        ${hasViewer ? `<a href="viewer.html?instanceId=${item.instanceId}" target="_blank" class="view-link">View Image ↗</a>` : ''}
+                        ${isLab ? `<button onclick="viewLabDetails(${item.sourceId})" class="view-link" style="background:#f0fdf4; padding:5px 12px; border-radius:6px; border:1px solid #dcfce7; cursor:pointer; color:#16a34a;">View Report ↗</button>` : ''}
+                    </div>
+
+                    <div style="margin-top:12px; padding:10px; background:#f8fafc; border-radius:8px; border-left:4px solid ${isRadiology ? '#cbd5e1' : '#bbf7d0'};">
+                        <div style="font-size:0.65rem; text-transform:uppercase; color:var(--text-muted); font-weight:700; margin-bottom:4px;">
+                            ${isRadiology ? 'Clinical Impression' : 'Quick Summary'}
+                        </div>
+                        <div style="line-height:1.4; color:var(--text-main);">
+                            ${item.summary || item.description || 'No data recorded.'}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+                    
+                }).join('')}
+            </div>
+        `;
+    } catch (error) {
+        console.error("Fetch error:", error);
+        document.getElementById('detailsPane').innerHTML = `
+            <div style="text-align:center; margin-top:100px; color:var(--text-muted);">
+                <p>Unable to load patient data. Please ensure the patient has a recorded history.</p>
+            </div>
+        `;
+    }
+}
+
+async function viewLabDetails(labId) {
+    try {
+        const res = await fetch(`http://localhost:5266/api/Lab/GetLabReport/${labId}`);
+        if (!res.ok) throw new Error("Could not fetch lab details");
+        const data = await res.json();
+
+        // Bind data to modal
+        document.getElementById('lab-ReportID').innerText = `ID: ${data.labReportIdentifier}`;
+        document.getElementById('lab-Name').innerText = data.patientName;
+        document.getElementById('lab-PID').innerText = data.patientIdentifier;
+        document.getElementById('lab-Sex').innerText = data.patientSex || 'N/A';
+        document.getElementById('lab-DOB').innerText = data.patientDOB;
+        document.getElementById('lab-Date').innerText = new Date(data.createdAt).toLocaleString();
+        
+        document.getElementById('lab-Test').innerText = data.testName;
+        document.getElementById('lab-Value').innerText = `${data.resultValue} ${data.unit}`;
+        document.getElementById('lab-Range').innerText = data.referenceRange;
+        
+        const interpEl = document.getElementById('lab-Interp');
+        interpEl.innerText = data.interpretation;
+        interpEl.style.color = data.interpretation.toLowerCase().includes('normal') ? '#166534' : '#991b1b';
+
+        document.getElementById('labReportModal').style.display = 'block';
+    } catch (err) {
+        console.error("Error loading lab details:", err);
+        alert("Failed to load lab report details.");
+    }
+}
+
+function closeLabModal() {
+    document.getElementById('labReportModal').style.display = 'none';
+}
+
+window.onload = initPortal;
+</script>
+
+</body>
+</html>

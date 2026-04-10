@@ -1,0 +1,75 @@
+<div id="labReportModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; overflow-y:auto;">
+    <div style="background:white; max-width:800px; margin:50px auto; padding:40px; border-radius:8px; position:relative;">
+        <button onclick="closeLabModal()" style="position:absolute; right:20px; top:20px; border:none; background:none; font-size:20px; cursor:pointer;">&times;</button>
+        
+        <div id="printableLabArea">
+            <div style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:20px;">
+                <h2 style="margin:0;">PATHOLOGY REPORT</h2>
+                <p id="lab-ReportID" style="color:#64748b; margin:5px 0;"></p>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:30px; font-size:0.9rem;">
+                <div><strong>Patient:</strong> <span id="lab-Name"></span></div>
+                <div><strong>Collection Date:</strong> <span id="lab-Date"></span></div>
+                <div><strong>Identifier:</strong> <span id="lab-PID"></span></div>
+                <div><strong>Sex/DOB:</strong> <span id="lab-Sex"></span> / <span id="lab-DOB"></span></div>
+            </div>
+
+            <table style="width:100%; border-collapse:collapse; margin-top:20px;">
+                <thead style="background:#f8fafc;">
+                    <tr>
+                        <th style="text-align:left; padding:12px; border-bottom:2px solid #e2e8f0;">Test Name</th>
+                        <th style="text-align:center; padding:12px; border-bottom:2px solid #e2e8f0;">Result</th>
+                        <th style="text-align:center; padding:12px; border-bottom:2px solid #e2e8f0;">Reference Range</th>
+                        <th style="text-align:center; padding:12px; border-bottom:2px solid #e2e8f0;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td id="lab-Test" style="padding:15px; border-bottom:1px solid #e2e8f0; font-weight:600;"></td>
+                        <td id="lab-Value" style="padding:15px; border-bottom:1px solid #e2e8f0; text-align:center; font-size:1.1rem;"></td>
+                        <td id="lab-Range" style="padding:15px; border-bottom:1px solid #e2e8f0; text-align:center; color:#64748b;"></td>
+                        <td id="lab-Interp" style="padding:15px; border-bottom:1px solid #e2e8f0; text-align:center;"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <button onclick="window.print()" style="margin-top:30px; background:#0f172a; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer;">
+            Print Official Report
+        </button>
+    </div>
+</div>
+
+<script>
+    async function viewLabDetails(labId) {
+    try {
+        const res = await fetch(`http://localhost:5266/api/Lab/GetLabReport/${labId}`);
+        const data = await res.json();
+
+        // Bind data to modal
+        document.getElementById('lab-ReportID').innerText = `ID: ${data.labReportIdentifier}`;
+        document.getElementById('lab-Name').innerText = data.patientName;
+        document.getElementById('lab-PID').innerText = data.patientIdentifier;
+        document.getElementById('lab-Sex').innerText = data.patientSex;
+        document.getElementById('lab-DOB').innerText = data.patientDOB;
+        document.getElementById('lab-Date').innerText = new Date(data.createdAt).toLocaleString();
+        
+        document.getElementById('lab-Test').innerText = data.testName;
+        document.getElementById('lab-Value').innerText = `${data.resultValue} ${data.unit}`;
+        document.getElementById('lab-Range').innerText = data.referenceRange;
+        
+        const interpEl = document.getElementById('lab-Interp');
+        interpEl.innerText = data.interpretation;
+        interpEl.style.color = data.interpretation.toLowerCase().includes('normal') ? '#166534' : '#991b1b';
+
+        document.getElementById('labReportModal').style.display = 'block';
+    } catch (err) {
+        console.error("Error loading lab details:", err);
+    }
+}
+
+function closeLabModal() {
+    document.getElementById('labReportModal').style.display = 'none';
+}
+</script>

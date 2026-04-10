@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using portals.Data;
@@ -11,9 +12,11 @@ using portals.Data;
 namespace portals.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260408162648_AddLabReportTable")]
+    partial class AddLabReportTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -222,107 +225,6 @@ namespace portals.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("portals.Models.CaseItemLink", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CaseId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int?>("ClinicalCaseId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("SourceId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("SourceTable")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClinicalCaseId");
-
-                    b.ToTable("CaseItemLinks");
-                });
-
-            modelBuilder.Entity("portals.Models.ClinicalCase", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CaseTitle")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LeadClinician")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("LongTermAdvice")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PatientIdentifier")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("TreatmentGoal")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ClinicalCases");
-                });
-
-            modelBuilder.Entity("portals.Models.ClinicalNote", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AuthoredBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("CaseId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("NoteText")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CaseId");
-
-                    b.ToTable("ClinicalNote");
-                });
-
             modelBuilder.Entity("portals.Models.LabReport", b =>
                 {
                     b.Property<int>("Id")
@@ -385,48 +287,6 @@ namespace portals.Migrations
                     b.ToTable("lab_reports");
                 });
 
-            modelBuilder.Entity("portals.Models.Medication", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CaseId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("DiscontinuedDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DiscontinuedReason")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Dosage")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("DrugName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Frequency")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("PrescribedDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CaseId");
-
-                    b.ToTable("Medications");
-                });
-
             modelBuilder.Entity("portals.Models.Patient", b =>
                 {
                     b.Property<int>("Id")
@@ -472,41 +332,6 @@ namespace portals.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("patients");
-                });
-
-            modelBuilder.Entity("portals.Models.PatientVital", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("BloodPressure")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("CaseId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("RecordedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RecordedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<float>("SpO2")
-                        .HasColumnType("real");
-
-                    b.Property<float>("Temperature")
-                        .HasColumnType("real");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CaseId");
-
-                    b.ToTable("Vitals");
                 });
 
             modelBuilder.Entity("portals.Models.Report", b =>
@@ -697,46 +522,6 @@ namespace portals.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("portals.Models.CaseItemLink", b =>
-                {
-                    b.HasOne("portals.Models.ClinicalCase", null)
-                        .WithMany("LinkedRecords")
-                        .HasForeignKey("ClinicalCaseId");
-                });
-
-            modelBuilder.Entity("portals.Models.ClinicalNote", b =>
-                {
-                    b.HasOne("portals.Models.ClinicalCase", "ClinicalCase")
-                        .WithMany("Notes")
-                        .HasForeignKey("CaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ClinicalCase");
-                });
-
-            modelBuilder.Entity("portals.Models.Medication", b =>
-                {
-                    b.HasOne("portals.Models.ClinicalCase", "ClinicalCase")
-                        .WithMany("Medications")
-                        .HasForeignKey("CaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ClinicalCase");
-                });
-
-            modelBuilder.Entity("portals.Models.PatientVital", b =>
-                {
-                    b.HasOne("portals.Models.ClinicalCase", "ClinicalCase")
-                        .WithMany("Vitals")
-                        .HasForeignKey("CaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ClinicalCase");
-                });
-
             modelBuilder.Entity("portals.Models.TimelineEvent", b =>
                 {
                     b.HasOne("portals.Models.Patient", "Patient")
@@ -746,17 +531,6 @@ namespace portals.Migrations
                         .IsRequired();
 
                     b.Navigation("Patient");
-                });
-
-            modelBuilder.Entity("portals.Models.ClinicalCase", b =>
-                {
-                    b.Navigation("LinkedRecords");
-
-                    b.Navigation("Medications");
-
-                    b.Navigation("Notes");
-
-                    b.Navigation("Vitals");
                 });
 #pragma warning restore 612, 618
         }

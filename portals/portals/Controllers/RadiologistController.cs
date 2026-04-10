@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using portals.Data;
+using portals.Models;
 
 namespace portals.Controllers;
 
@@ -126,41 +127,74 @@ namespace portals.Controllers;
         
         // Inside RadiologistController.cs
 
-        [HttpPost("UpdateReport")]
-        public async Task<IActionResult> UpdateReport([FromBody] UpdateReportRequest model)
+    [HttpPost("UpdateReport")]
+    public async Task<IActionResult> UpdateReport([FromBody] UpdateReportRequest model)
+    {
+        // 1. Fetch the report
+        var report = await _context.Reports.FirstOrDefaultAsync(r => r.InstanceNumber == model.InstanceId);
+        if (report == null) return NotFound("Report not found.");
+        if (report.IsFinalized) return BadRequest("Report is finalized and cannot be updated.");
+
+        // 2. Update the Report fields
+        report.StudyDescription = model.StudyDescription;
+        report.ClinicalHistory = model.ClinicalHistory;
+        report.Findings = model.Findings;
+        report.Impression = model.Impression;
+        report.OtherNote = model.OtherNote;
+
+        if (!string.IsNullOrEmpty(model.AiSuggestion)) 
+            report.AiSuggestion = model.AiSuggestion;
+
+        if (model.ShouldFinalize)
         {
-            var report = await _context.Reports.FirstOrDefaultAsync(r => r.InstanceNumber == model.InstanceId);
-            if (report == null) return NotFound("Report not found.");
-            if (report.IsFinalized) return BadRequest("Report is finalized Cannot Update Report.");
-            report.StudyDescription = model.StudyDescription;
-            report.ClinicalHistory = model.ClinicalHistory;
-            report.Findings = model.Findings;
-            report.Impression = model.Impression;
-            report.OtherNote = model.OtherNote;
-    
-            if (!string.IsNullOrEmpty(model.AiSuggestion)) 
-            {
-                report.AiSuggestion = model.AiSuggestion;
-            }
-
-            // 2. Logic: Define "Draft" vs "Finalized"
-            if (model.ShouldFinalize)
-            {
-                report.IsFinalized = true;
-                report.FinalizedAt = DateTime.UtcNow;
-                report.FinalizedBy = "Dr. Senior User"; // Replace with real Auth later
-            }
-            else 
-            {
-                // This is a "Save Draft" action
-                report.IsFinalized = false; 
-                report.GeneratedBy = "Dr. Junior User";
-                report.GeneratedAt = DateTime.UtcNow; // Mark that work has started
-            }
-
-            await _context.SaveChangesAsync();
-            return Ok(new { message = report.IsFinalized ? "Finalized!" : "Draft Saved!" });
+            report.IsFinalized = true;
+            report.FinalizedAt = DateTime.UtcNow;
+            report.FinalizedBy = "Dr. Senior User"; 
         }
+        else 
+        {
+            report.IsFinalized = false; 
+            report.GeneratedBy = "Dr. Junior User";
+            report.GeneratedAt = DateTime.UtcNow;
+        }
+
+        // 3. --- TIMELINE SYNC LOGIC ---
+        // Since Report only has PatientIdentifier (string), we find the internal Int ID
+        var internalPatient = await _context.Patients
+            .FirstOrDefaultAsync(p => p.PatientIdentifier == report.PatientIdentifier);
+
+        if (internalPatient != null)
+        {
+            // Check if a timeline event already exists for this report
+            var existingEvent = await _context.TimelineEvents
+                .FirstOrDefaultAsync(t => t.SourceTable == "reports" && t.SourceId == report.Id);
+
+            string displayDesc = $"{report.Modality}: {(!string.IsNullOrEmpty(report.Impression) ? report.Impression : "Drafting in progress...")}";
+
+            if (existingEvent == null)
+            {
+                // First time saving - Create new timeline entry
+                _context.TimelineEvents.Add(new TimelineEvent
+                {
+                    PatientId = internalPatient.Id, // The essential integer ID
+                    EventType = "RADIOLOGY",
+                    EventDate = DateTime.UtcNow,
+                    SourceTable = "reports",
+                    SourceId = report.Id,
+                    Description = displayDesc
+                });
+            }
+            else
+            {
+                // Update existing timeline entry
+                existingEvent.Description = displayDesc;
+                existingEvent.EventDate = DateTime.UtcNow;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { message = report.IsFinalized ? "Finalized!" : "Draft Saved!" });
+    }
 
         public class UpdateReportRequest
         {

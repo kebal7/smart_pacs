@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPACS | Treatment Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f1f5f9;
+            --sidebar: #ffffff;
+            --primary: #0f172a;
+            --accent: #2563eb;
+            --border: #e2e8f0;
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; color: var(--primary); overflow: hidden; }
+        
+        /* Sidebar: Patient List */
+        .sidebar { width: 320px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
+        .sidebar-header input { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); outline: none; }
+        .patient-list { overflow-y: auto; flex-grow: 1; }
+        .patient-item { padding: 15px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
+        .patient-item:hover { background: #f8fafc; }
+        .patient-item.active { background: #eff6ff; border-left: 4px solid var(--accent); }
+
+        /* Middle: Case List */
+        .case-pane { width: 350px; background: #f8fafc; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .case-list { padding: 20px; overflow-y: auto; }
+        .case-card { background: white; padding: 15px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 12px; cursor: pointer; }
+        .case-card.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1); }
+
+        /* Main View: Case Details */
+        .main-view { flex-grow: 1; padding: 40px; overflow-y: auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .btn { padding: 10px 20px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; }
+        .btn-primary { background: var(--accent); color: white; }
+        
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index: 1000; }
+
+        /* New UI Elements */
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .btn-small { padding: 5px 10px; font-size: 0.75rem; background: #f1f5f9; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
+        .btn-small:hover { background: var(--accent); color: white; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+        th { text-align: left; padding: 8px; border-bottom: 2px solid var(--border); color: #64748b; }
+        td { padding: 10px 8px; border-bottom: 1px solid #f1f5f9; }
+        
+        .med-pill { background: #f0fdf4; border: 1px solid #dcfce7; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .med-pill strong { color: #166534; }
+
+        input[type="text"], input[type="number"], textarea { 
+            width: 100%; padding: 10px; margin: 8px 0; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; font-family: inherit;
+        }
+        textarea { min-height: 100px; resize: vertical; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3>Patients</h3>
+            <input type="text" placeholder="Search by name or ID...">
+        </div>
+        <div id="patientList" class="patient-list"></div>
+    </div>
+
+    <div class="case-pane">
+        <div class="sidebar-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <h4 style="margin:0">Clinical Episodes</h4>
+            <button id="btnNewCase" class="btn-primary" style="padding:4px 8px; font-size:0.8rem; border-radius:4px; display:none;" onclick="showModal('caseModal')">+ New</button>
+        </div>
+        <div id="caseList" class="case-list">
+            <p style="text-align:center; color: #94a3b8; margin-top: 50px;">Select a patient to view cases</p>
+        </div>
+    </div>
+
+    <div class="main-view" id="mainView">
+        <div style="text-align:center; margin-top:100px; color: #94a3b8;">
+            <h2>Management Dashboard</h2>
+            <p>Select a specific case to view monitoring and treatment details.</p>
+        </div>
+    </div>
+
+    <div id="caseModal" class="modal">
+        <div class="card" style="width:400px;">
+            <h3>New Treatment Case</h3>
+            <label style="font-size:0.8rem;">Case Title</label>
+            <input type="text" id="mCaseTitle" placeholder="e.g., Post-Op Recovery">
+            <label style="font-size:0.8rem;">Goal</label>
+            <input type="text" id="mCaseGoal" placeholder="Target outcome">
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button class="btn btn-primary" style="flex:1" onclick="submitCase()">Create Case</button>
+                <button class="btn" onclick="closeModals()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="vitalModal" class="modal">
+        <div class="card" style="width:350px;">
+            <h3>Record Vitals</h3>
+            <input type="number" step="0.1" id="vTemp" placeholder="Temperature (°C)">
+            <input type="text" id="vBP" placeholder="Blood Pressure (e.g. 120/80)">
+            <input type="number" id="vSpO2" placeholder="SpO2 (%)">
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button class="btn btn-primary" style="flex:1" onclick="submitVital()">Save Vitals</button>
+                <button class="btn" onclick="closeModals()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="medModal" class="modal">
+        <div class="card" style="width:350px;">
+            <h3>Prescribe Medication</h3>
+            <input type="text" id="mDrug" placeholder="Drug Name">
+            <input type="text" id="mDosage" placeholder="Dosage (e.g. 500mg)">
+            <input type="text" id="mFreq" placeholder="Frequency (e.g. Twice Daily)">
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button class="btn btn-primary" style="flex:1" onclick="submitMedication()">Add to Plan</button>
+                <button class="btn" onclick="closeModals()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+let selectedPID = null;
+let currentCaseId = null;
+
+async function init() {
+    try {
+        const res = await fetch('http://localhost:5266/api/Clinician/Patients');
+        const patients = await res.json();
+        document.getElementById('patientList').innerHTML = patients.map(p => `
+            <div class="patient-item" onclick="selectPatient('${p.patientIdentifier || p.PatientIdentifier}', '${p.patientName || p.name || p.PatientName}')">
+                <strong>${p.patientName || p.name || p.PatientName}</strong><br>
+                <small>${p.patientIdentifier || p.PatientIdentifier}</small>
+            </div>
+        `).join('');
+    } catch (err) { console.error("Failed to load patients", err); }
+}
+
+async function selectPatient(pid, name) {
+    selectedPID = pid;
+    document.getElementById('btnNewCase').style.display = 'block';
+    document.querySelectorAll('.patient-item').forEach(el => el.classList.remove('active'));
+    if(event) event.currentTarget.classList.add('active');
+    loadCases();
+}
+
+async function loadCases() {
+    const res = await fetch(`http://localhost:5266/api/Case/PatientCases/${selectedPID}`);
+    const cases = await res.json();
+    document.getElementById('caseList').innerHTML = cases.map(c => `
+        <div class="case-card" id="case-card-${c.id || c.Id}" onclick="viewCase(${c.id || c.Id})">
+            <div style="font-size:0.7rem; color:var(--accent); font-weight:700;">${c.status || c.Status}</div>
+            <div style="font-weight:600;">${c.caseTitle || c.CaseTitle}</div>
+            <div style="font-size:0.75rem; color:#64748b;">${new Date(c.createdAt || c.CreatedAt).toLocaleDateString()}</div>
+        </div>
+    `).join('');
+}
+
+async function viewCase(id) {
+    currentCaseId = id;
+    
+    // UI selection state
+    document.querySelectorAll('.case-card').forEach(el => el.classList.remove('active'));
+    const activeCard = document.getElementById(`case-card-${id}`);
+    if (activeCard) activeCard.classList.add('active');
+
+    try {
+        const res = await fetch(`http://localhost:5266/api/Case/GetCaseDetails/${id}`);
+        if (!res.ok) throw new Error("Server error");
+        
+        const data = await res.json();
+        console.log("Full Case Data:", data); // Check this in F12!
+
+        // Support both CamelCase and PascalCase just in case
+        const vitals = data.vitals || data.Vitals || [];
+        const medications = data.medications || data.Medications || [];
+
+        const main = document.getElementById('mainView');
+        main.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h1>${data.caseTitle || data.CaseTitle}</h1>
+                <span class="btn-small" style="background:#fffbeb; color:#92400e;">Status: ${data.status || data.Status}</span>
+            </div>
+
+            <div class="card" style="border-left: 5px solid var(--accent); background: #f8fafc;">
+                <label style="font-size:0.7rem; font-weight:700; color:var(--accent)">TREATMENT GOAL</label>
+                <h4 style="margin:5px 0;">${data.treatmentGoal || data.TreatmentGoal}</h4>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="section-header">
+                        <h3>Vitals History</h3>
+                        <button class="btn-small" onclick="showModal('vitalModal')">+ Record</button>
+                    </div>
+                    <table>
+                        <thead><tr><th>Date</th><th>Temp</th><th>BP</th><th>SpO2</th></tr></thead>
+                        <tbody>
+                            ${vitals.length > 0 ? vitals.map(v => `
+                                <tr>
+                                    <td>${new Date(v.recordedAt || v.RecordedAt).toLocaleDateString()}</td>
+                                    <td>${v.temperature || v.Temperature}°C</td>
+                                    <td>${v.bloodPressure || v.BloodPressure}</td>
+                                    <td style="color:${(v.spO2 || v.SpO2) < 94 ? '#dc2626' : '#16a34a'}; font-weight:700;">
+                                        ${v.spO2 || v.SpO2}%
+                                    </td>
+                                </tr>
+                            `).join('') : '<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:20px;">No records found for this case.</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <div class="section-header">
+                        <h3>Medication Plan</h3>
+                        <button class="btn-small" onclick="showModal('medModal')">+ Add Drug</button>
+                    </div>
+                    <div id="medList">
+                        ${medications.length > 0 ? medications.map(m => `
+                            <div class="med-pill" style="${!m.isActive ? 'background:#f1f5f9; border-color:#cbd5e1; opacity:0.8;' : ''}">
+                                <div>
+                                    <strong style="${!m.isActive ? 'color:#64748b;' : ''}">${m.drugName}</strong><br>
+                                    <small>${m.dosage} • ${m.frequency}</small><br>
+                                    <small style="color:#94a3b8;">Started: ${new Date(m.prescribedDate).toLocaleDateString()}</small>
+                                    ${m.discontinuedDate ? `<br><small style="color:#ef4444;">Ended: ${new Date(m.discontinuedDate).toLocaleDateString()} (${m.discontinuedReason})</small>` : ''}
+                                </div>
+                                <div>
+                                    ${m.isActive ? 
+                                        `<button class="btn-small" onclick="discontinueMed(${m.id})">Stop</button>` : 
+                                        `<span style="font-size:0.7rem; color:#64748b;">DISCONTINUED</span>`
+                                    }
+                                </div>
+                            </div>
+                        `).join('') : '<p style="text-align:center; color:#94a3b8; padding:10px;">No medications prescribed.</p>'}
+                    </div>
+                </div>
+                
+            </div>
+
+        <div class="card">
+            <h3>Clinical Timeline & Notes</h3>
+            <div id="notesHistory" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px; border-bottom: 1px solid #eee;">
+                </div>
+            <textarea id="newNoteText" placeholder="Add a new clinical observation or collaborative note..."></textarea>
+            <button class="btn btn-primary" onclick="submitNote()">Post Note</button>
+        </div>
+        `;
+
+        const notes = data.notes || []; // Ensure you .Include(c => c.Notes) in the backend GET
+        document.getElementById('notesHistory').innerHTML = notes.map(n => `
+            <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border-radius: 8px;">
+                <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 5px;">
+                    <strong>${n.authoredBy}</strong> • ${new Date(n.createdAt).toLocaleString()}
+                </div>
+                <div style="font-size: 0.9rem;">${n.noteText}</div>
+            </div>
+        `).join('') || '<p style="color:#94a3b8">No notes yet.</p>'
+            } catch (err) {
+                console.error("ViewCase Error:", err);
+                alert("Could not load case details. Check if the API is running.");
+            }
+    
+}
+
+function showModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+
+async function submitCase() {
+    const payload = {
+        patientIdentifier: selectedPID,
+        caseTitle: document.getElementById('mCaseTitle').value,
+        treatmentGoal: document.getElementById('mCaseGoal').value,
+        status: "Active",
+        leadClinician: "Dr. Kebal",
+        vitals: [], medications: [], linkedRecords: []
+    };
+    const res = await fetch('http://localhost:5266/api/Case/CreateCase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    if (res.ok) { closeModals(); loadCases(); }
+}
+
+async function submitVital() {
+    const payload = {
+        caseId: currentCaseId,
+        temperature: parseFloat(document.getElementById('vTemp').value),
+        bloodPressure: document.getElementById('vBP').value,
+        spO2: parseFloat(document.getElementById('vSpO2').value),
+        recordedBy: "Dr. Kebal"
+    };
+    const res = await fetch('http://localhost:5266/api/Case/AddVital', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    if (res.ok) { closeModals(); viewCase(currentCaseId); }
+}
+
+async function submitMedication() {
+    const payload = {
+        caseId: currentCaseId,
+        drugName: document.getElementById('mDrug').value,
+        dosage: document.getElementById('mDosage').value,
+        frequency: document.getElementById('mFreq').value,
+        isActive: true
+    };
+    const res = await fetch('http://localhost:5266/api/Case/AddMedication', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    if (res.ok) { closeModals(); viewCase(currentCaseId); }
+}
+
+async function discontinueMed(medId) {
+    const reason = prompt("Enter reason for discontinuing this medication:");
+    if (!reason) return;
+
+    const res = await fetch(`http://localhost:5266/api/Case/DiscontinueMedication`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            medId: medId,   // Matches MedId in DTO
+            reason: reason  // Matches Reason in DTO
+        })
+    });
+
+    if (res.ok) {
+        viewCase(currentCaseId);
+    } else {
+        const errorData = await res.json();
+        console.error("Discontinue failed:", errorData);
+        alert("Failed to discontinue medication. Check server logs.");
+    }
+}
+
+async function submitNote() {
+    const text = document.getElementById('newNoteText').value;
+    if (!text) return;
+
+    const res = await fetch(`http://localhost:5266/api/Case/AddNote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId: currentCaseId, noteText: text })
+    });
+
+    if (res.ok) {
+        document.getElementById('newNoteText').value = '';
+        viewCase(currentCaseId); // Refresh the view
+    }
+}
+
+async function updateAdvice() {
+    const adviceText = document.getElementById('caseAdvice').value;
+    const res = await fetch(`http://localhost:5266/api/Case/UpdateAdvice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId: currentCaseId, advice: adviceText })
+    });
+    if (res.ok) alert("Notes updated successfully.");
+}
+
+window.onload = init;
+</script>
+</body>
+</html>

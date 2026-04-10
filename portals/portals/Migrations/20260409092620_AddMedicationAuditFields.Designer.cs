@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using portals.Data;
@@ -11,9 +12,11 @@ using portals.Data;
 namespace portals.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260409092620_AddMedicationAuditFields")]
+    partial class AddMedicationAuditFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -292,35 +295,6 @@ namespace portals.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ClinicalCases");
-                });
-
-            modelBuilder.Entity("portals.Models.ClinicalNote", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AuthoredBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("CaseId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("NoteText")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CaseId");
-
-                    b.ToTable("ClinicalNote");
                 });
 
             modelBuilder.Entity("portals.Models.LabReport", b =>
@@ -704,17 +678,6 @@ namespace portals.Migrations
                         .HasForeignKey("ClinicalCaseId");
                 });
 
-            modelBuilder.Entity("portals.Models.ClinicalNote", b =>
-                {
-                    b.HasOne("portals.Models.ClinicalCase", "ClinicalCase")
-                        .WithMany("Notes")
-                        .HasForeignKey("CaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ClinicalCase");
-                });
-
             modelBuilder.Entity("portals.Models.Medication", b =>
                 {
                     b.HasOne("portals.Models.ClinicalCase", "ClinicalCase")
@@ -753,8 +716,6 @@ namespace portals.Migrations
                     b.Navigation("LinkedRecords");
 
                     b.Navigation("Medications");
-
-                    b.Navigation("Notes");
 
                     b.Navigation("Vitals");
                 });
