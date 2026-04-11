@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using portals.Data;
 using portals.Models;
@@ -7,6 +9,8 @@ namespace portals.Controllers;
 
 [ApiController]
 [Route("api/patients")]
+[Authorize(Roles = "RegistrationDesk,Admin", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+
 public class PatientController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -36,6 +40,13 @@ public class PatientController : ControllerBase
     [HttpPost]
     public IActionResult CreatePatient(CreatePatientDto dto)
     {
+        // 1. Check for Future Date
+        // 1. Compare ONLY the Date part
+        if (dto.DateOfBirth.Date > DateTime.Today)
+        {
+            return BadRequest(new { message = "Date of Birth cannot be in the future." });
+        }
+
         var lastPatient = _context.Patients
             .OrderByDescending(p => p.Id)
             .FirstOrDefault();
@@ -45,8 +56,8 @@ public class PatientController : ControllerBase
         var patient = new Patient
         {
             PatientIdentifier = $"PAT{nextId:D6}",
-            Name = dto.Name,
-            DateOfBirth = dto.DateOfBirth,
+            Name = dto.Name.Trim(), // Clean up spaces
+            DateOfBirth = DateTime.SpecifyKind(dto.DateOfBirth, DateTimeKind.Utc),
             Address = dto.Address,
             ContactNo = dto.ContactNo,
             EmergencyContact = dto.EmergencyContact
@@ -62,10 +73,16 @@ public class PatientController : ControllerBase
     [HttpPut("{id}")]
     public IActionResult UpdatePatient(int id, CreatePatientDto dto)
     {
+        // 1. Compare ONLY the Date part
+        if (dto.DateOfBirth.Date > DateTime.Today)
+        {
+            return BadRequest(new { message = "Date of Birth cannot be in the future." });
+        }
+        
         var patient = _context.Patients.Find(id);
         if (patient == null) return NotFound();
 
-        patient.Name = dto.Name;
+        patient.Name = dto.Name.Trim();
         patient.DateOfBirth = DateTime.SpecifyKind(dto.DateOfBirth, DateTimeKind.Utc);
         patient.Address = dto.Address;
         patient.ContactNo = dto.ContactNo;
