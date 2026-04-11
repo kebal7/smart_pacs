@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart PACS | Super User Portal</title>
+    <style>
+        :root {
+            --primary: #1e3a8a; --success: #10b981; --danger: #ef4444; --bg: #f8fafc; --text: #1e293b;
+        }
+
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; }
+
+        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; margin-bottom: 30px; }
+
+        .btn-logout { padding: 10px 20px; background: #64748b; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+
+        /* Error Message Styling */
+        #error-overlay {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            background: #fef2f2;
+            border: 1px solid #fee2e2;
+            border-radius: 8px;
+            color: var(--danger);
+            margin-bottom: 20px;
+        }
+
+        #error-overlay h3 { margin-top: 0; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { background-color: #f1f5f9; text-align: left; padding: 15px; font-size: 13px; color: #475569; }
+        td { padding: 15px; border-bottom: 1px solid #f1f5f9; }
+
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #dbeafe; color: #1e40af; }
+        
+        .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .dot-active { background-color: var(--success); }
+        .dot-disabled { background-color: var(--danger); }
+
+        .btn-toggle { padding: 8px 16px; border-radius: 6px; cursor: pointer; border: 1px solid #e2e8f0; background: white; transition: 0.2s; }
+        .disable-mode { color: var(--danger); border-color: #fecaca; }
+        .enable-mode { color: var(--success); border-color: #a7f3d0; }
+        .btn-toggle:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #loader { text-align: center; padding: 20px; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div>
+            <h1>Super User Portal</h1>
+            <p>Account Management & Access Control</p>
+        </div>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+
+    <!-- Graceful Error UI -->
+    <div id="error-overlay">
+        <h3 id="error-title">Access Denied</h3>
+        <p id="error-msg">You do not have permission to view this page.</p>
+        <button class="btn-logout" onclick="logout()">Back to Login</button>
+    </div>
+
+    <div id="loader">Loading accounts...</div>
+
+    <table id="userTable" style="display: none;">
+        <thead>
+            <tr>
+                <th>Email Address</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="userList"></tbody>
+    </table>
+</div>
+
+<script>
+    const API_BASE = "http://localhost:5266/api";
+
+    function showError(title, message) {
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('userTable').style.display = 'none';
+        const overlay = document.getElementById('error-overlay');
+        overlay.style.display = 'block';
+        document.getElementById('error-title').innerText = title;
+        document.getElementById('error-msg').innerText = message;
+    }
+
+    async function fetchUsers() {
+        const token = localStorage.getItem('jwtToken'); 
+        if (!token) { logout(); return; }
+
+        try {
+            const response = await fetch(`${API_BASE}/admin/users`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.status === 401) {
+                showError("Session Expired", "Your security token is invalid or has expired.");
+                setTimeout(logout, 3000); // Redirect after 3 seconds
+                return;
+            }
+
+            if (response.status === 403) {
+                showError("Forbidden", "You do not have the Admin role required to access this portal.");
+                return;
+            }
+
+            const users = await response.json();
+            renderUsers(users);
+        } catch (error) {
+            showError("Server Connection Error", "Unable to connect to the Smart PACS backend. Please ensure the server is running.");
+        }
+    }
+
+    function renderUsers(users) {
+        const listBody = document.getElementById('userList');
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('userTable').style.display = 'table';
+        listBody.innerHTML = '';
+
+        users.forEach(user => {
+            const isSelf = user.email === 'admin@smartpacs.com'; 
+            const statusLabel = user.isDisabled ? 'Disabled' : 'Active';
+            const dotClass = user.isDisabled ? 'dot-disabled' : 'dot-active';
+            const btnClass = user.isDisabled ? 'enable-mode' : 'disable-mode';
+            const btnText = user.isDisabled ? 'Enable' : 'Disable';
+
+            listBody.innerHTML += `
+                <tr>
+                    <td>${user.email}</td>
+                    <td><span class="badge">${user.role}</span></td>
+                    <td><span class="dot ${dotClass}"></span> ${statusLabel}</td>
+                    <td>
+                        <button class="btn-toggle ${btnClass}" 
+                                ${isSelf ? 'disabled' : ''} 
+                                onclick="toggleAccount('${user.id}')">
+                            ${isSelf ? 'Master' : btnText}
+                        </button>
+                    </td>
+                </tr>`;
+        });
+    }
+
+    async function toggleAccount(userId) {
+        const token = localStorage.getItem('jwtToken'); 
+        if(!confirm("Change user status?")) return;
+
+        try {
+            const response = await fetch(`${API_BASE}/admin/users/${userId}/toggle-status`, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json' 
+                }
+            });
+
+            if (response.status === 401) {
+                alert("Auth Error: Token tampered with. Redirecting...");
+                logout();
+            } else if (response.ok) {
+                fetchUsers(); 
+            } else {
+                alert("Action failed. You might have lost Admin privileges.");
+            }
+        } catch (err) {
+            alert("Network error.");
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('jwtToken'); 
+        window.location.href = 'login.html';
+    }
+
+    fetchUsers();
+</script>
+</body>
+</html>

@@ -1,11 +1,11 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 namespace portals.Controllers
 {
@@ -16,21 +16,19 @@ namespace portals.Controllers
         private readonly UserManager<IdentityUser> _userManager;
         private readonly IConfiguration _config;
         private readonly SignInManager<IdentityUser> _signInManager;
-        private readonly ILogger<AuthController> _logger;
 
         public AuthController(
             UserManager<IdentityUser> userManager,
             SignInManager<IdentityUser> signInManager,
-            IConfiguration config,
-            ILogger<AuthController> logger)
+            IConfiguration config)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _config = config;
-            _logger = logger;
         }
 
-        // ---------------- Register ----------------
+        // ---------------- AUTHENTICATION ----------------
+
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto model)
         {
@@ -48,65 +46,52 @@ namespace portals.Controllers
                 return BadRequest(result.Errors);
 
             await _userManager.AddToRoleAsync(user, model.Role);
-
             return Ok(new { message = "User registered successfully" });
         }
 
-        // ---------------- Login ----------------
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto model)
         {
             var user = await _userManager.FindByEmailAsync(model.Email);
-            if (user == null)
-                return Unauthorized("Invalid credentials.");
+            if (user == null) return Unauthorized("Invalid credentials.");
 
             var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
-            if (!result.Succeeded)
-                return Unauthorized("Invalid credentials.");
-
+            
+            if (result.IsLockedOut)
+                return StatusCode(403, "This account has been disabled. Please contact the administrator.");
+            
+            if (!result.Succeeded) return Unauthorized("Invalid credentials.");
+            
             var roles = await _userManager.GetRolesAsync(user);
-            
-            Console.WriteLine("===== IDENTITY USER =====");
-            Console.WriteLine($"Id: {user.Id}");
-            Console.WriteLine($"UserName: {user.UserName}");
-            Console.WriteLine($"Email: {user.Email}");
-            Console.WriteLine($"Roles: {string.Join(",", roles)}");
-            
             var token = GenerateJwtToken(user, roles);
-            Console.WriteLine(token);
-            return Ok(new { token });
+
+            return Ok(new { token, role = roles.FirstOrDefault() });
+        }
+
+        // ---------------- PROFILE MANAGEMENT ----------------
+
+        [Authorize]
+        [HttpPut("update-password")]
+        public async Task<IActionResult> UpdatePassword([FromBody] UpdatePasswordDto model)
+        {
+            var user = await _userManager.FindByNameAsync(User.Identity.Name);
+            if (user == null) return NotFound();
+
+            var result = await _userManager.ChangePasswordAsync(user, model.CurrentPassword, model.NewPassword);
+            if (!result.Succeeded) return BadRequest(result.Errors);
+
+            return Ok(new { message = "Password updated successfully" });
         }
         
-        [Authorize]
-        [HttpGet("validate")]
-        public IActionResult Validate()
-        {
-            Console.WriteLine("===== CLAIMS =====");
 
-            foreach (var claim in User.Claims)
-            {
-                Console.WriteLine($"{claim.Type} = {claim.Value}");
-            }
-
-            Console.WriteLine("Identity.Name = " + User.Identity?.Name);
-
-            return Ok(new
-            {
-                name = User.Identity?.Name,
-                claims = User.Claims.Select(c => new { c.Type, c.Value })
-            });
-        }
-
-
-
-        // ---------------- Helpers ----------------
         private string GenerateJwtToken(IdentityUser user, IList<string> roles)
         {
             var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-                new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName)
+                new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
+                new Claim(ClaimTypes.Name, user.UserName) // Added for User.Identity.Name
             };
 
             foreach (var role in roles)
@@ -127,17 +112,8 @@ namespace portals.Controllers
         }
     }
 
-    // ---------------- DTOs ----------------
-    public class RegisterDto
-    {
-        public string Email { get; set; }
-        public string Password { get; set; }
-        public string Role { get; set; }
-    }
-
-    public class LoginDto
-    {
-        public string Email { get; set; }
-        public string Password { get; set; }
-    }
+    // --- DTOs ---
+    public class RegisterDto { public string Email { get; set; } public string Password { get; set; } public string Role { get; set; } }
+    public class LoginDto { public string Email { get; set; } public string Password { get; set; } }
+    public class UpdatePasswordDto { public string CurrentPassword { get; set; } public string NewPassword { get; set; } }
 }

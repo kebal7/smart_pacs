@@ -103,23 +103,29 @@
         <p class="link">Don't have an account? <a href="./register.html">Register</a></p>
     </div>
 
-    <script type="module">
-        import { login } from '../js/auth.js';
+<script type="module">
+    import { login } from '../js/auth.js';
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            const result = await login(email, password);
-            console.log(result);
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        
+        const result = await login(email, password);
 
-            if(result.token){
-                alert("Login successful!");
+        if (result.token) {
+            // Redirect based on role
+            console.log(result.role);
+            if (result.role === "Admin") {
+                window.location.href = "./admin.html";
+            }else {
                 window.location.href = "./radiographer.html";
-            } else {
-                alert(result || "Login failed");
             }
-        });
-    </script>
+        } else {
+            alert(result.error || "Login failed");
+        }
+    });
+
+</script>
 </body>
 </html>
