@@ -12,6 +12,9 @@ namespace portals.DTOs
         [Required(ErrorMessage = "Date of Birth is required")]
         public DateTime DateOfBirth { get; set; }
 
+        [Required]
+        public string Sex { get; set; }
+        
         [Required(ErrorMessage = "Address is required")]
         public string Address { get; set; }
 

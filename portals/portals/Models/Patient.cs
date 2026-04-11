@@ -19,7 +19,10 @@ public class Patient
 
     [Column("date_of_birth")]
     public DateTime DateOfBirth { get; set; }
-
+    
+    [Column("sex")]
+    public string Sex { get; set; }
+    
     [Column("address")]
     public string Address { get; set; }
 

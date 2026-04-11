@@ -21,10 +21,32 @@ public class PatientController : ControllerBase
     }
 
     // GET all patients
+// GET patients with pagination and search
     [HttpGet]
-    public IActionResult GetPatients()
+    [HttpGet]
+    public IActionResult GetPatients([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string search = "")
     {
-        return Ok(_context.Patients.ToList());
+        // don't allow a malicious request
+        if (pageSize > 100) pageSize = 100; 
+
+        var query = _context.Patients.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string s = search.ToLower();
+            query = query.Where(p => p.Name.ToLower().Contains(s) || p.PatientIdentifier.ToLower().Contains(s));
+        }
+
+        int totalCount = query.Count();
+        int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+        var data = query
+            .OrderByDescending(p => p.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize) // Uses the dynamic pageSize from the frontend
+            .ToList();
+
+        return Ok(new { totalCount, totalPages, currentPage = page, data });
     }
 
     // GET patient by id
@@ -58,6 +80,7 @@ public class PatientController : ControllerBase
             PatientIdentifier = $"PAT{nextId:D6}",
             Name = dto.Name.Trim(), // Clean up spaces
             DateOfBirth = DateTime.SpecifyKind(dto.DateOfBirth, DateTimeKind.Utc),
+            Sex = dto.Sex,
             Address = dto.Address,
             ContactNo = dto.ContactNo,
             EmergencyContact = dto.EmergencyContact
@@ -84,6 +107,7 @@ public class PatientController : ControllerBase
 
         patient.Name = dto.Name.Trim();
         patient.DateOfBirth = DateTime.SpecifyKind(dto.DateOfBirth, DateTimeKind.Utc);
+        patient.Sex = dto.Sex;
         patient.Address = dto.Address;
         patient.ContactNo = dto.ContactNo;
         patient.EmergencyContact = dto.EmergencyContact;

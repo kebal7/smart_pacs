@@ -236,6 +236,17 @@
                 <label>Date of Birth</label>
                 <input type="date" id="dob" required id="dobInput">
             </div>
+            
+            <div class="form-group">
+                <label>Sex</label>
+                <select id="sex" required style="padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
+                    <option value="">Select</option>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                    <option value="O">Other</option>
+                </select>
+            </div>
+
             <div class="form-group">
                 <label>Address</label>
                 <input type="text" id="address" placeholder="Kathmandu, Nepal">
@@ -268,6 +279,7 @@
                     <th>Identifier</th>
                     <th>Name</th>
                     <th>DOB</th>
+                    <th>Sex</th>
                     <th>Contact Info</th>
                     <th>Emergency</th>
                     <th style="text-align: right;">Actions</th>
@@ -278,6 +290,32 @@
             </tbody>
         </table>
     </div>
+
+    <div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; margin-top: -15px;">
+        <!-- Page Size Selector -->
+        <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 10px;">
+            <span>Rows per page:</span>
+            <select id="pageSizeSelect" style="padding: 4px; border-radius: 4px; border: 1px solid var(--border); outline: none;">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+            </select>
+        </div>
+
+        <!-- Page Info -->
+        <div style="font-size: 0.85rem; color: var(--text-muted);">
+            Page <span id="pageNum">1</span> of <span id="totalPageNum">1</span> 
+            (<span id="totalEntryNum">0</span> patients)
+        </div>
+
+        <!-- Navigation -->
+        <div style="display: flex; gap: 8px;">
+            <button id="prevBtn" class="btn-icon" style="width: auto; padding: 0 15px;">Previous</button>
+            <button id="nextBtn" class="btn-icon" style="width: auto; padding: 0 15px;">Next</button>
+        </div>
+    </div>
+
 </div>
 
 <!-- Graceful Security Modal -->
@@ -342,17 +380,46 @@
     const searchBox = document.getElementById("searchBox");
     const countBadge = document.getElementById("patientCount");
 
+    
+    // --- PAGINATION & SEARCH STATE ---
+    let currentPage = 1;
+    let pageSize = 10;
+    let currentSearch = "";
+    let totalPages = 1;
+
+    // --- PAGE SIZE LISTENER ---
+    document.getElementById("pageSizeSelect").addEventListener("change", (e) => {
+        pageSize = parseInt(e.target.value);
+        currentPage = 1; // Always reset to page 1 when size changes
+        loadPatients();
+    });
+
     async function loadPatients() {
+        const token = localStorage.getItem('jwtToken');
         try {
-            const res = await fetch(API, {
-                headers: { "Authorization": `Bearer ${localStorage.getItem('jwtToken')}` }
+            // Build URL with query parameters
+            const url = `${API}?page=${currentPage}&pageSize=${pageSize}&search=${encodeURIComponent(currentSearch)}`;
+            
+            const res = await fetch(url, {
+                headers: { "Authorization": `Bearer ${token}` }
             });
             
             if (await handleAuthError(res)) return;
 
-            patients = await res.json();
-            countBadge.innerText = patients.length;
-            render(patients);
+            const result = await res.json();
+            
+            // Update metadata
+            totalPages = result.totalPages;
+            document.getElementById("pageNum").innerText = result.currentPage;
+            document.getElementById("totalPageNum").innerText = result.totalPages;
+            document.getElementById("totalEntryNum").innerText = result.totalCount;
+            document.getElementById("patientCount").innerText = result.totalCount;
+
+            // Update button states
+            document.getElementById("prevBtn").disabled = (currentPage <= 1);
+            document.getElementById("nextBtn").disabled = (currentPage >= totalPages);
+
+            render(result.data);
         } catch (e) {
             console.error("Connection error", e);
         }
@@ -370,6 +437,7 @@
                 <td><span class="patient-id-badge">${p.patientIdentifier}</span></td>
                 <td class="name"><strong>${p.name}</strong></td>
                 <td class="dob">${p.dateOfBirth?.split("T")[0] || ""}</td>
+                 <td class="sex">${p.sex || ""}</td>
                 <td>
                     <div class="contact" style="font-weight:500;">${p.contactNo || "—"}</div>
                     <div class="address" style="font-size:0.75rem; color:var(--text-muted);">${p.address || ""}</div>
@@ -416,6 +484,7 @@
             name: document.getElementById("name").value,
             dateOfBirth: selectedDate.toISOString(),
             address: document.getElementById("address").value,
+            sex: document.getElementById("sex").value,
             contactNo: document.getElementById("contact").value,
             emergencyContact: document.getElementById("emergency").value
         };
@@ -444,18 +513,36 @@
         }
     });
 
+    // --- SEARCH LOGIC (Database search) ---
+    let searchTimeout;
     searchBox.addEventListener("input", () => {
-        const text = searchBox.value.toLowerCase();
-        const filtered = patients.filter(p =>
-            p.name.toLowerCase().includes(text) ||
-            p.patientIdentifier.toLowerCase().includes(text)
-        );
-        render(filtered);
+        // Clear previous timeout (Debouncing prevents hitting DB on every single keystroke)
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            currentSearch = searchBox.value;
+            currentPage = 1; // Reset to page 1 on new search
+            loadPatients();
+        }, 400); // Wait 400ms after user stops typing
+    });
+
+        // --- PAGINATION NAVIGATION ---
+    document.getElementById("prevBtn").addEventListener("click", () => {
+        if (currentPage > 1) {
+            currentPage--;
+            loadPatients();
+        }
+    });
+
+    document.getElementById("nextBtn").addEventListener("click", () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            loadPatients();
+        }
     });
 
     window.editRow = (btn, id) => {
         const row = btn.closest("tr");
-        const fields = ["name", "dob", "address", "contact", "emergency"];
+        const fields = ["name", "dob", "sex", "address", "contact", "emergency"];
         
         const today = new Date().toISOString().split('T')[0]; // Quick YYYY-MM-DD
 
@@ -463,12 +550,26 @@
             const cell = row.querySelector(`.${field}`);
             if(!cell) return;
             const currentVal = cell.innerText;
-            const type = field === "dob" ? "date" : "text";
+
+            if(field === "sex") {
+                cell.innerHTML = `
+                    <select class="edit-input">
+                        <option value="M" ${currentVal==='M'?'selected':''}>M</option>
+                        <option value="F" ${currentVal==='F'?'selected':''}>F</option>
+                        <option value="O" ${currentVal==='O'?'selected':''}>O</option>
+                    </select>`;
+            } else {
+                const type = field === "dob" ? "date" : "text";
+                const maxAttr = field === "dob" ? `max="${today}"` : "";
+                cell.innerHTML = `<input type="${type}" class="edit-input" value="${currentVal}">`;
+            }
+
+            // const type = field === "dob" ? "date" : "text";
             
-            // ADDED THE 'max' ATTRIBUTE HERE
-            const maxAttr = field === "dob" ? `max="${today}"` : "";
+            // // ADDED THE 'max' ATTRIBUTE HERE
+            // const maxAttr = field === "dob" ? `max="${today}"` : "";
             
-            cell.innerHTML = `<input type="${type}" ${maxAttr} class="edit-input" value="${currentVal}">`;
+            // cell.innerHTML = `<input type="${type}" ${maxAttr} class="edit-input" value="${currentVal}">`;
         });
 
         const actionCell = row.querySelector(".actions");
