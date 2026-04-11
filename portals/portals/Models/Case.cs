@@ -5,19 +5,22 @@ namespace portals.Models
     public class ClinicalCase 
     {
         public int Id { get; set; }
-        public string PatientIdentifier { get; set; } // Linking to Registration
-        public string CaseTitle { get; set; } 
-        public string Status { get; set; } // "Active", "Resolved"
-        public string TreatmentGoal { get; set; }
-        public string LongTermAdvice { get; set; }
-        public string LeadClinician { get; set; } 
+        public string PatientIdentifier { get; set; } = string.Empty; 
+        public string CaseTitle { get; set; } = string.Empty;
+        public string Status { get; set; } = "Active"; 
+        public string? TreatmentGoal { get; set; }
+        public string? LongTermAdvice { get; set; }
+    
+        // Clean property, no hardcoded name here
+        public string LeadClinician { get; set; } = string.Empty; 
+    
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Navigation properties for EF Core
-        public ICollection<PatientVital> Vitals { get; set; }
-        public ICollection<Medication> Medications { get; set; }
-        public ICollection<CaseItemLink> LinkedRecords { get; set; }
-        public ICollection<ClinicalNote> ClinicalNotes { get; set; }
+        // Collections initialized to prevent null errors
+        public ICollection<PatientVital> Vitals { get; set; } = new List<PatientVital>();
+        public ICollection<Medication> Medications { get; set; } = new List<Medication>();
+        public ICollection<CaseItemLink> LinkedRecords { get; set; } = new List<CaseItemLink>();
+        public ICollection<ClinicalNote> ClinicalNotes { get; set; } = new List<ClinicalNote>();
     }
 
     public class PatientVital
@@ -72,6 +75,10 @@ namespace portals.Models
     {
         public int Id { get; set; }
         public int CaseId { get; set; }
+        
+        [ForeignKey("CaseId")]
+        public ClinicalCase? ClinicalCase { get; set; }
+        
         public string SourceTable { get; set; } // "reports" or "lab_reports"
         public int SourceId { get; set; } 
         public string Category { get; set; } // "Imaging", "Lab"

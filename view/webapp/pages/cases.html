@@ -12,50 +12,55 @@
             --primary: #0f172a;
             --accent: #2563eb;
             --border: #e2e8f0;
+            --text-muted: #64748b;
         }
         body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; color: var(--primary); overflow: hidden; }
         
-        /* Sidebar: Patient List */
-        .sidebar { width: 320px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        /* Layout Panes */
+        .sidebar { width: 300px; min-width: 300px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .case-pane { width: 320px; min-width: 320px; background: #f8fafc; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .main-view { flex-grow: 1; padding: 40px; overflow-y: auto; background: var(--bg); }
+
         .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
-        .sidebar-header input { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); outline: none; }
-        .patient-list { overflow-y: auto; flex-grow: 1; }
-        .patient-item { padding: 15px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
-        .patient-item:hover { background: #f8fafc; }
-        .patient-item.active { background: #eff6ff; border-left: 4px solid var(--accent); }
+        .sidebar-header input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); outline: none; box-sizing: border-box; }
 
-        /* Middle: Case List */
-        .case-pane { width: 350px; background: #f8fafc; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-        .case-list { padding: 20px; overflow-y: auto; }
-        .case-card { background: white; padding: 15px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 12px; cursor: pointer; }
-        .case-card.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1); }
+        .list-container { overflow-y: auto; flex-grow: 1; }
 
-        /* Main View: Case Details */
-        .main-view { flex-grow: 1; padding: 40px; overflow-y: auto; }
-        .card { background: white; padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
-        
+        .patient-item, .episode-card { 
+            padding: 15px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; background: white;
+        }
+        .patient-item:hover, .episode-card:hover { background: #f1f5f9; }
+        .patient-item.active, .episode-card.active { background: #eff6ff; border-left: 4px solid var(--accent); }
+
+        /* Detail Components */
+        .card { background: white; padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
         .btn { padding: 10px 20px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; }
         .btn-primary { background: var(--accent); color: white; }
         
-        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index: 1000; }
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index: 1000; backdrop-filter: blur(2px); }
 
-        /* New UI Elements */
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .btn-small { padding: 5px 10px; font-size: 0.75rem; background: #f1f5f9; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
-        .btn-small:hover { background: var(--accent); color: white; }
+        .btn-small { padding: 6px 12px; font-size: 0.75rem; background: #fff; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: 500; }
+        .btn-small:hover { border-color: var(--accent); color: var(--accent); }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
-        th { text-align: left; padding: 8px; border-bottom: 2px solid var(--border); color: #64748b; }
-        td { padding: 10px 8px; border-bottom: 1px solid #f1f5f9; }
-        
-        .med-pill { background: #f0fdf4; border: 1px solid #dcfce7; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .med-pill strong { color: #166534; }
+        .scroll-box { max-height: 280px; overflow-y: auto; border-radius: 8px; }
 
-        input[type="text"], input[type="number"], textarea { 
-            width: 100%; padding: 10px; margin: 8px 0; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; font-family: inherit;
-        }
-        textarea { min-height: 100px; resize: vertical; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        thead th { position: sticky; top: 0; background: white; z-index: 10; text-align: left; padding: 10px; border-bottom: 2px solid var(--border); color: var(--text-muted); }
+        td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; }
+        
+        .med-pill { background: #f0fdf4; border: 1px solid #dcfce7; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+
+        input, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; }
+
+        /* Timeline-Style Evidence Styles */
+        .evidence-timeline { position: relative; padding-left: 30px; margin-top: 10px; }
+        .evidence-timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+        .evidence-item { position: relative; margin-bottom: 25px; }
+        .evidence-dot { position: absolute; left: -30px; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 3px solid white; box-shadow: 0 0 0 1px var(--border); }
+        .evidence-content { background: #f8fafc; border: 1px solid var(--border); padding: 15px; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -63,67 +68,34 @@
     <div class="sidebar">
         <div class="sidebar-header">
             <h3>Patients</h3>
-            <input type="text" placeholder="Search by name or ID...">
+            <input type="text" placeholder="Search Patients...">
         </div>
-        <div id="patientList" class="patient-list"></div>
+        <div id="patientList" class="list-container"></div>
     </div>
 
     <div class="case-pane">
         <div class="sidebar-header" style="display:flex; justify-content:space-between; align-items:center;">
-            <h4 style="margin:0">Clinical Episodes</h4>
-            <button id="btnNewCase" class="btn-primary" style="padding:4px 8px; font-size:0.8rem; border-radius:4px; display:none;" onclick="showModal('caseModal')">+ New</button>
+            <h4 style="margin:0">Episodes</h4>
+            <button id="btnNewCase" class="btn-primary" style="padding:6px 12px; font-size:0.75rem; border-radius:6px; display:none;" onclick="showModal('caseModal')">+ New</button>
         </div>
-        <div id="caseList" class="case-list">
-            <p style="text-align:center; color: #94a3b8; margin-top: 50px;">Select a patient to view cases</p>
+        <div id="caseList" class="list-container">
+            <p style="text-align:center; color: var(--text-muted); margin-top: 50px;">Select a patient</p>
         </div>
     </div>
 
     <div class="main-view" id="mainView">
-        <div style="text-align:center; margin-top:100px; color: #94a3b8;">
+        <div style="text-align:center; margin-top:100px; color: var(--text-muted);">
             <h2>Management Dashboard</h2>
-            <p>Select a specific case to view monitoring and treatment details.</p>
+            <p>Select a clinical episode to view details.</p>
         </div>
     </div>
 
-    <div id="caseModal" class="modal">
-        <div class="card" style="width:400px;">
-            <h3>New Treatment Case</h3>
-            <label style="font-size:0.8rem;">Case Title</label>
-            <input type="text" id="mCaseTitle" placeholder="e.g., Post-Op Recovery">
-            <label style="font-size:0.8rem;">Goal</label>
-            <input type="text" id="mCaseGoal" placeholder="Target outcome">
-            <div style="margin-top:20px; display:flex; gap:10px;">
-                <button class="btn btn-primary" style="flex:1" onclick="submitCase()">Create Case</button>
-                <button class="btn" onclick="closeModals()">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="vitalModal" class="modal">
-        <div class="card" style="width:350px;">
-            <h3>Record Vitals</h3>
-            <input type="number" step="0.1" id="vTemp" placeholder="Temperature (°C)">
-            <input type="text" id="vBP" placeholder="Blood Pressure (e.g. 120/80)">
-            <input type="number" id="vSpO2" placeholder="SpO2 (%)">
-            <div style="margin-top:20px; display:flex; gap:10px;">
-                <button class="btn btn-primary" style="flex:1" onclick="submitVital()">Save Vitals</button>
-                <button class="btn" onclick="closeModals()">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="medModal" class="modal">
-        <div class="card" style="width:350px;">
-            <h3>Prescribe Medication</h3>
-            <input type="text" id="mDrug" placeholder="Drug Name">
-            <input type="text" id="mDosage" placeholder="Dosage (e.g. 500mg)">
-            <input type="text" id="mFreq" placeholder="Frequency (e.g. Twice Daily)">
-            <div style="margin-top:20px; display:flex; gap:10px;">
-                <button class="btn btn-primary" style="flex:1" onclick="submitMedication()">Add to Plan</button>
-                <button class="btn" onclick="closeModals()">Cancel</button>
-            </div>
-        </div>
-    </div>
+    <!-- Modals -->
+    <div id="caseModal" class="modal"><div class="card" style="width:400px;"><h3>New Case</h3><input type="text" id="mCaseTitle" placeholder="Title"><input type="text" id="mCaseGoal" placeholder="Goal"><div style="margin-top:20px; display:flex; gap:10px;"><button class="btn btn-primary" style="flex:1" onclick="submitCase()">Create</button><button class="btn" onclick="closeModals()">Cancel</button></div></div></div>
+    <div id="vitalModal" class="modal"><div class="card" style="width:350px;"><h3>Record Vitals</h3><input type="number" step="0.1" id="vTemp" placeholder="Temp (°C)"><input type="text" id="vBP" placeholder="BP"><input type="number" id="vSpO2" placeholder="SpO2 (%)"><div style="margin-top:20px; display:flex; gap:10px;"><button class="btn btn-primary" style="flex:1" onclick="submitVital()">Save</button><button class="btn" onclick="closeModals()">Cancel</button></div></div></div>
+    <div id="medModal" class="modal"><div class="card" style="width:350px;"><h3>Prescribe</h3><input type="text" id="mDrug" placeholder="Drug"><input type="text" id="mDosage" placeholder="Dosage"><input type="text" id="mFreq" placeholder="Frequency"><div style="margin-top:20px; display:flex; gap:10px;"><button class="btn btn-primary" style="flex:1" onclick="submitMedication()">Add</button><button class="btn" onclick="closeModals()">Cancel</button></div></div></div>
+    <div id="linkRecordModal" class="modal"><div class="card" style="width:500px; max-height:80vh; overflow-y:auto;"><h3>Link Records</h3><div id="linkableRecordsList"></div><button class="btn" onclick="closeModals()" style="width:100%; margin-top:20px;">Done</button></div></div>
+    <div id="labReportModal" class="modal"><div class="card" style="max-width:800px; margin:50px auto; padding:40px; position:relative;"><button onclick="closeModals()" style="position:absolute; right:20px; top:20px; border:none; background:#f1f5f9; width:32px; height:32px; border-radius:50%; cursor:pointer;">&times;</button><div id="labContent"></div></div></div>
 
 <script>
 let selectedPID = null;
@@ -132,14 +104,14 @@ let currentCaseId = null;
 async function init() {
     try {
         const res = await fetch('http://localhost:5266/api/Clinician/Patients');
-        const patients = await res.json();
-        document.getElementById('patientList').innerHTML = patients.map(p => `
-            <div class="patient-item" onclick="selectPatient('${p.patientIdentifier || p.PatientIdentifier}', '${p.patientName || p.name || p.PatientName}')">
-                <strong>${p.patientName || p.name || p.PatientName}</strong><br>
-                <small>${p.patientIdentifier || p.PatientIdentifier}</small>
+        const data = await res.json();
+        document.getElementById('patientList').innerHTML = data.map(p => `
+            <div class="patient-item" onclick="selectPatient('${p.patientIdentifier || p.PatientIdentifier}', '${p.patientName || p.name}')">
+                <div style="font-weight:600;">${p.patientName || p.name}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">${p.patientIdentifier || p.PatientIdentifier}</div>
             </div>
         `).join('');
-    } catch (err) { console.error("Failed to load patients", err); }
+    } catch (err) { console.error(err); }
 }
 
 async function selectPatient(pid, name) {
@@ -154,218 +126,238 @@ async function loadCases() {
     const res = await fetch(`http://localhost:5266/api/Case/PatientCases/${selectedPID}`);
     const cases = await res.json();
     document.getElementById('caseList').innerHTML = cases.map(c => `
-        <div class="case-card" id="case-card-${c.id || c.Id}" onclick="viewCase(${c.id || c.Id})">
-            <div style="font-size:0.7rem; color:var(--accent); font-weight:700;">${c.status || c.Status}</div>
-            <div style="font-weight:600;">${c.caseTitle || c.CaseTitle}</div>
-            <div style="font-size:0.75rem; color:#64748b;">${new Date(c.createdAt || c.CreatedAt).toLocaleDateString()}</div>
+        <div class="episode-card" id="case-card-${c.id || c.Id}" onclick="viewCase(${c.id || c.Id})">
+            <div style="font-size:0.65rem; color:var(--accent); font-weight:700; text-transform:uppercase;">${c.status || c.Status}</div>
+            <div style="font-weight:600; margin:4px 0;">${c.caseTitle || c.CaseTitle}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">${new Date(c.createdAt || c.CreatedAt).toLocaleDateString()}</div>
         </div>
-    `).join('');
+    `).join('') || '<p style="text-align:center; padding:20px;">No episodes.</p>';
 }
 
 async function viewCase(id) {
     currentCaseId = id;
-    
-    // UI selection state
-    document.querySelectorAll('.case-card').forEach(el => el.classList.remove('active'));
-    const activeCard = document.getElementById(`case-card-${id}`);
-    if (activeCard) activeCard.classList.add('active');
+    document.querySelectorAll('.episode-card').forEach(el => el.classList.remove('active'));
+    document.getElementById(`case-card-${id}`)?.classList.add('active');
 
     try {
         const res = await fetch(`http://localhost:5266/api/Case/GetCaseDetails/${id}`);
-        if (!res.ok) throw new Error("Server error");
-        
         const data = await res.json();
-        console.log("Full Case Data:", data); // Check this in F12!
 
-        // Support both CamelCase and PascalCase just in case
+        // Support both Camel and Pascal casing safely
         const vitals = data.vitals || data.Vitals || [];
         const medications = data.medications || data.Medications || [];
+        const linkedRecs = data.linkedRecords || data.LinkedRecords || [];
 
-        const main = document.getElementById('mainView');
-        main.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h1>${data.caseTitle || data.CaseTitle}</h1>
+        // Updated "Timeline" View for Linked Records
+        const recordsHTML = linkedRecs.map(link => {
+            const table = (link.sourceTable || link.SourceTable || "").toLowerCase();
+            const instId = link.instanceId || link.InstanceId;
+            const srcId = link.sourceId || link.SourceId;
+            const summary = link.summary || link.Summary || "No summary provided.";
+            const category = link.category || link.Category || "Record";
+            const isLab = table === 'lab_reports';
+            
+            const dotColor = isLab ? '#10b981' : 'var(--accent)';
+            const icon = isLab ? '🧪 LABORATORY' : '🩻 RADIOLOGY';
+            
+            const viewAction = isLab 
+                ? `viewLabDetails(${srcId})` 
+                : `window.open('viewer.html?instanceId=${instId}', '_blank')`;
+
+            return `
+            <div class="evidence-item linked-item" data-source-id="${srcId}">
+                <div class="evidence-dot" style="background: ${dotColor}"></div>
+                <div class="evidence-content">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">${icon}</span>
+                        <button class="btn-small" onclick="${viewAction}">${isLab ? 'View Report ↗' : 'View Image ↗'}</button>
+                    </div>
+                    <div style="padding:10px; background:white; border-radius:8px; border-left:4px solid #cbd5e1;">
+                        <div style="font-size:0.65rem; text-transform:uppercase; color:var(--text-muted); font-weight:700; margin-bottom:4px;">Impression / Summary</div>
+                        <div style="line-height:1.5; font-size:0.9rem; white-space: pre-wrap;">${summary}</div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+        document.getElementById('mainView').innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:25px;">
+                <h1 style="margin:0;">${data.caseTitle || data.CaseTitle}</h1>
                 <span class="btn-small" style="background:#fffbeb; color:#92400e;">Status: ${data.status || data.Status}</span>
             </div>
 
-            <div class="card" style="border-left: 5px solid var(--accent); background: #f8fafc;">
-                <label style="font-size:0.7rem; font-weight:700; color:var(--accent)">TREATMENT GOAL</label>
-                <h4 style="margin:5px 0;">${data.treatmentGoal || data.TreatmentGoal}</h4>
+            <div class="card" style="border-left: 5px solid var(--accent);">
+                <label style="font-size:0.7rem; font-weight:700; color:var(--accent);">TREATMENT GOAL</label>
+                <h3 style="margin:5px 0;">${data.treatmentGoal || data.TreatmentGoal}</h3>
             </div>
 
             <div class="grid">
                 <div class="card">
-                    <div class="section-header">
-                        <h3>Vitals History</h3>
-                        <button class="btn-small" onclick="showModal('vitalModal')">+ Record</button>
+                    <div class="section-header"><h3>Vitals History</h3><button class="btn-small" onclick="showModal('vitalModal')">+ Record</button></div>
+                    <div class="scroll-box">
+                        <table>
+                            <thead><tr><th>Date</th><th>Temp</th><th>BP</th><th>SpO2</th></tr></thead>
+                            <tbody>
+                                ${vitals.map(v => `<tr><td>${new Date(v.recordedAt || v.RecordedAt).toLocaleDateString()}</td><td>${v.temperature || v.Temperature}°C</td><td>${v.bloodPressure || v.BloodPressure}</td><td style="font-weight:700; color:${(v.spO2 || v.SpO2) < 94 ? '#dc2626' : '#16a34a'}">${v.spO2 || v.SpO2}%</td></tr>`).join('') || '<tr><td colspan="4">No data.</td></tr>'}
+                            </tbody>
+                        </table>
                     </div>
-                    <table>
-                        <thead><tr><th>Date</th><th>Temp</th><th>BP</th><th>SpO2</th></tr></thead>
-                        <tbody>
-                            ${vitals.length > 0 ? vitals.map(v => `
-                                <tr>
-                                    <td>${new Date(v.recordedAt || v.RecordedAt).toLocaleDateString()}</td>
-                                    <td>${v.temperature || v.Temperature}°C</td>
-                                    <td>${v.bloodPressure || v.BloodPressure}</td>
-                                    <td style="color:${(v.spO2 || v.SpO2) < 94 ? '#dc2626' : '#16a34a'}; font-weight:700;">
-                                        ${v.spO2 || v.SpO2}%
-                                    </td>
-                                </tr>
-                            `).join('') : '<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:20px;">No records found for this case.</td></tr>'}
-                        </tbody>
-                    </table>
                 </div>
-
                 <div class="card">
-                    <div class="section-header">
-                        <h3>Medication Plan</h3>
-                        <button class="btn-small" onclick="showModal('medModal')">+ Add Drug</button>
-                    </div>
-                    <div id="medList">
-                        ${medications.length > 0 ? medications.map(m => `
-                            <div class="med-pill" style="${!m.isActive ? 'background:#f1f5f9; border-color:#cbd5e1; opacity:0.8;' : ''}">
+                    <div class="section-header"><h3>Medication Plan</h3><button class="btn-small" onclick="showModal('medModal')">+ Add Drug</button></div>
+                    <div class="scroll-box">
+                        ${medications.map(m => `
+                            <div class="med-pill" style="${!(m.isActive ?? m.IsActive) ? 'background:#f1f5f9; opacity:0.8;' : ''}">
                                 <div>
-                                    <strong style="${!m.isActive ? 'color:#64748b;' : ''}">${m.drugName}</strong><br>
-                                    <small>${m.dosage} • ${m.frequency}</small><br>
-                                    <small style="color:#94a3b8;">Started: ${new Date(m.prescribedDate).toLocaleDateString()}</small>
-                                    ${m.discontinuedDate ? `<br><small style="color:#ef4444;">Ended: ${new Date(m.discontinuedDate).toLocaleDateString()} (${m.discontinuedReason})</small>` : ''}
+                                    <strong>${m.drugName || m.DrugName}</strong><br>
+                                    <small>${m.dosage || m.Dosage} • ${m.frequency || m.Frequency}</small><br>
+                                    <small style="color:var(--text-muted);">Started: ${new Date(m.prescribedDate || m.PrescribedDate).toLocaleDateString()}</small>
+                                    ${(m.discontinuedDate || m.DiscontinuedDate) ? `<br><small style="color:#ef4444;">Stopped: ${new Date(m.discontinuedDate || m.DiscontinuedDate).toLocaleDateString()} (${m.discontinuedReason || m.DiscontinuedReason})</small>` : ''}
                                 </div>
-                                <div>
-                                    ${m.isActive ? 
-                                        `<button class="btn-small" onclick="discontinueMed(${m.id})">Stop</button>` : 
-                                        `<span style="font-size:0.7rem; color:#64748b;">DISCONTINUED</span>`
-                                    }
-                                </div>
+                                <div>${(m.isActive ?? m.IsActive) ? `<button class="btn-small" onclick="discontinueMed(${m.id || m.Id})">Stop</button>` : '<small>STOPPED</small>'}</div>
                             </div>
-                        `).join('') : '<p style="text-align:center; color:#94a3b8; padding:10px;">No medications prescribed.</p>'}
+                        `).join('') || '<p style="text-align:center; padding:20px;">No medications.</p>'}
                     </div>
                 </div>
-                
             </div>
 
-        <div class="card">
-            <h3>Clinical Timeline & Notes</h3>
-            <div id="notesHistory" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px; border-bottom: 1px solid #eee;">
+            <div class="card">
+                <div class="section-header"><h3>Linked Records & Evidence</h3><button class="btn-small" onclick="openLinkModal()">+ Link New</button></div>
+                <div class="evidence-timeline">
+                    ${recordsHTML || '<p style="color:var(--text-muted); text-align:center; padding:20px;">No records linked.</p>'}
                 </div>
-            <textarea id="newNoteText" placeholder="Add a new clinical observation or collaborative note..."></textarea>
-            <button class="btn btn-primary" onclick="submitNote()">Post Note</button>
-        </div>
+            </div>
+
+            <div class="card">
+                <h3>Observations & Progress Notes</h3>
+                <div id="notesHistory" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
+                <textarea id="newNoteText" placeholder="Add clinical note..."></textarea>
+                <button class="btn btn-primary" onclick="submitNote()">Save Note</button>
+            </div>
         `;
 
-        const notes = data.notes || []; // Ensure you .Include(c => c.Notes) in the backend GET
+        const notes = data.clinicalNotes || data.ClinicalNotes || [];
         document.getElementById('notesHistory').innerHTML = notes.map(n => `
-            <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border-radius: 8px;">
-                <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 5px;">
-                    <strong>${n.authoredBy}</strong> • ${new Date(n.createdAt).toLocaleString()}
-                </div>
-                <div style="font-size: 0.9rem;">${n.noteText}</div>
+            <div style="margin-bottom:10px; padding:15px; background:#f8fafc; border-radius:10px; border:1px solid var(--border);">
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 5px;"><strong>${n.authoredBy || n.AuthoredBy}</strong> • ${new Date(n.createdAt || n.CreatedAt).toLocaleString()}</div>
+                <div style="font-size: 0.95rem; line-height:1.5;">${n.noteText || n.NoteText}</div>
             </div>
-        `).join('') || '<p style="color:#94a3b8">No notes yet.</p>'
-            } catch (err) {
-                console.error("ViewCase Error:", err);
-                alert("Could not load case details. Check if the API is running.");
-            }
-    
+        `).join('') || '<p>No notes recorded.</p>';
+    } catch (err) { console.error(err); }
+}
+
+async function viewLabDetails(labId) {
+    try {
+        const res = await fetch(`http://localhost:5266/api/Lab/GetLabReport/${labId}`);
+        const data = await res.json();
+        document.getElementById('labContent').innerHTML = `
+            <div style="text-align:center; border-bottom:2px solid #000; padding-bottom:15px; margin-bottom:20px;"><h2>LABORATORY REPORT</h2></div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; background:#f8fafc; padding:20px; border-radius:8px;">
+                <div><strong>Test:</strong> ${data.testName}</div>
+                <div><strong>Result:</strong> <span style="font-size:1.2rem; font-weight:bold;">${data.resultValue} ${data.unit}</span></div>
+                <div><strong>Date:</strong> ${new Date(data.createdAt).toLocaleDateString()}</div>
+                <div><strong>Ref Range:</strong> ${data.referenceRange}</div>
+            </div>
+            <p style="margin-top:20px;"><strong>Interpretation:</strong><br><span style="color:${data.interpretation.toLowerCase().includes('normal') ? '#166534' : '#991b1b'}; font-weight:bold;">${data.interpretation}</span></p>
+        `;
+        showModal('labReportModal');
+    } catch (err) { alert("Error loading lab."); }
+}
+
+async function openLinkModal() {
+    const existingIds = Array.from(document.querySelectorAll('.linked-item')).map(el => el.dataset.sourceId);
+    const res = await fetch(`http://localhost:5266/api/Case/GetLinkableRecords/${selectedPID}`);
+    const data = await res.json();
+    const container = document.getElementById('linkableRecordsList');
+    const createRow = (item, cat, table) => {
+        const isLinked = existingIds.includes(item.id.toString());
+        return `<div class="patient-item" style="display:flex; justify-content:space-between; align-items:center; background:#fff;">
+            <div><strong>${item.title}</strong><br><small>${new Date(item.date).toLocaleDateString()}</small></div>
+            ${isLinked ? '<small style="font-weight:700;">LINKED</small>' : `<button class="btn-small" onclick="linkRecord(${item.id}, '${cat}', '${table}')">Link</button>`}
+        </div>`;
+    };
+    container.innerHTML = `<h4>Radiology</h4>${data.imaging.map(r => createRow(r, 'Imaging', 'reports')).join('')}<h4>Labs</h4>${data.lab.map(l => createRow(l, 'Lab', 'lab_reports')).join('')}`;
+    showModal('linkRecordModal');
 }
 
 function showModal(id) { document.getElementById(id).style.display = 'flex'; }
 function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
 
+async function linkRecord(sourceId, category, table) {
+    await fetch(`http://localhost:5266/api/Case/LinkRecordToCase`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caseId: currentCaseId, sourceId, category, sourceTable: table }) });
+    closeModals(); viewCase(currentCaseId);
+}
+
 async function submitCase() {
+    const title = document.getElementById('mCaseTitle').value;
+    const goal = document.getElementById('mCaseGoal').value;
+
+    // 1. Validation
+    if (!selectedPID) {
+        alert("Please select a patient from the list first.");
+        return;
+    }
+    if (!title.trim()) {
+        alert("Please enter a Case Title.");
+        return;
+    }
+
+    // 2. Build the payload
+    // We only send what the user input. The Controller handles the rest.
     const payload = {
         patientIdentifier: selectedPID,
-        caseTitle: document.getElementById('mCaseTitle').value,
-        treatmentGoal: document.getElementById('mCaseGoal').value,
-        status: "Active",
-        leadClinician: "Dr. Kebal",
-        vitals: [], medications: [], linkedRecords: []
+        caseTitle: title,
+        treatmentGoal: goal,
+        longTermAdvice: "" // Optional placeholder
     };
-    const res = await fetch('http://localhost:5266/api/Case/CreateCase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-    if (res.ok) { closeModals(); loadCases(); }
+
+    try {
+        const res = await fetch('http://localhost:5266/api/Case/CreateCase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            // Clear fields and refresh
+            document.getElementById('mCaseTitle').value = '';
+            document.getElementById('mCaseGoal').value = '';
+            closeModals();
+            loadCases(); // Refresh the middle pane
+        } else {
+            const error = await res.json();
+            console.error("Creation failed:", error);
+            alert("Error creating case. check console.");
+        }
+    } catch (err) {
+        console.error("Network error:", err);
+    }
 }
 
 async function submitVital() {
-    const payload = {
-        caseId: currentCaseId,
-        temperature: parseFloat(document.getElementById('vTemp').value),
-        bloodPressure: document.getElementById('vBP').value,
-        spO2: parseFloat(document.getElementById('vSpO2').value),
-        recordedBy: "Dr. Kebal"
-    };
-    const res = await fetch('http://localhost:5266/api/Case/AddVital', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-    if (res.ok) { closeModals(); viewCase(currentCaseId); }
+    const payload = { caseId: currentCaseId, temperature: parseFloat(document.getElementById('vTemp').value), bloodPressure: document.getElementById('vBP').value, spO2: parseFloat(document.getElementById('vSpO2').value), recordedBy: "Dr. Kebal" };
+    await fetch('http://localhost:5266/api/Case/AddVital', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    closeModals(); viewCase(currentCaseId);
 }
 
 async function submitMedication() {
-    const payload = {
-        caseId: currentCaseId,
-        drugName: document.getElementById('mDrug').value,
-        dosage: document.getElementById('mDosage').value,
-        frequency: document.getElementById('mFreq').value,
-        isActive: true
-    };
-    const res = await fetch('http://localhost:5266/api/Case/AddMedication', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-    if (res.ok) { closeModals(); viewCase(currentCaseId); }
-}
-
-async function discontinueMed(medId) {
-    const reason = prompt("Enter reason for discontinuing this medication:");
-    if (!reason) return;
-
-    const res = await fetch(`http://localhost:5266/api/Case/DiscontinueMedication`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            medId: medId,   // Matches MedId in DTO
-            reason: reason  // Matches Reason in DTO
-        })
-    });
-
-    if (res.ok) {
-        viewCase(currentCaseId);
-    } else {
-        const errorData = await res.json();
-        console.error("Discontinue failed:", errorData);
-        alert("Failed to discontinue medication. Check server logs.");
-    }
+    const payload = { caseId: currentCaseId, drugName: document.getElementById('mDrug').value, dosage: document.getElementById('mDosage').value, frequency: document.getElementById('mFreq').value, isActive: true };
+    await fetch('http://localhost:5266/api/Case/AddMedication', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    closeModals(); viewCase(currentCaseId);
 }
 
 async function submitNote() {
     const text = document.getElementById('newNoteText').value;
     if (!text) return;
-
-    const res = await fetch(`http://localhost:5266/api/Case/AddNote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caseId: currentCaseId, noteText: text })
-    });
-
-    if (res.ok) {
-        document.getElementById('newNoteText').value = '';
-        viewCase(currentCaseId); // Refresh the view
-    }
+    await fetch(`http://localhost:5266/api/Case/AddNote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caseId: currentCaseId, noteText: text }) });
+    document.getElementById('newNoteText').value = ''; viewCase(currentCaseId);
 }
 
-async function updateAdvice() {
-    const adviceText = document.getElementById('caseAdvice').value;
-    const res = await fetch(`http://localhost:5266/api/Case/UpdateAdvice`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caseId: currentCaseId, advice: adviceText })
-    });
-    if (res.ok) alert("Notes updated successfully.");
+async function discontinueMed(medId) {
+    const reason = prompt("Stop reason:");
+    if (!reason) return;
+    await fetch(`http://localhost:5266/api/Case/DiscontinueMedication`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medId, reason }) });
+    viewCase(currentCaseId);
 }
 
 window.onload = init;
