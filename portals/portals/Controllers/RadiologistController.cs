@@ -34,13 +34,15 @@ namespace portals.Controllers;
         }
 
         // GET: /Radiologist
+        [HttpGet]
+
         public IActionResult Index()
         {
             return View();
         }
 
         // GET: /Radiologist/ListDicoms
-        [HttpGet]
+        [HttpGet("ListDicoms")] 
         public async Task<IActionResult> ListDicoms()
         {
             using var client = CreateClient();
@@ -55,7 +57,7 @@ namespace portals.Controllers;
         
 
         // GET: /Radiologist/GetDicomMetadata?instanceId=xxx
-        [HttpGet]
+        [HttpGet("GetDicomMetadata/{id}")]
         public async Task<IActionResult> GetDicomMetadata(string instanceId)
         {
             using var client = CreateClient();

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using portals.Data;
 using Microsoft.IdentityModel.Tokens;
 using portals.services;
+using Microsoft.OpenApi; // Flattened namespace for v10
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,10 +27,10 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options =>
     options.Password.RequireLowercase = true;
     
     options.Lockout.AllowedForNewUsers = true; 
-    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5); // For wrong password attempts
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5); 
     options.Lockout.MaxFailedAccessAttempts = 5; 
 })
-.AddRoles<IdentityRole>() // MUST HAVE THIS FOR ROLES TO WORK
+.AddRoles<IdentityRole>() 
 .AddEntityFrameworkStores<ApplicationDbContext>();
 
 // CORS
@@ -48,6 +49,36 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
+
+// --- SWAGGER CONFIGURATION (v10 / .NET 10 compatible) ---
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo 
+    { 
+        Title = "Smart PACS API", 
+        Version = "v1" 
+    });
+
+    // Define the JWT Security Scheme
+    var securityScheme = new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Description = "Enter JWT Bearer token **_only_**",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer", 
+        BearerFormat = "JWT"
+    };
+
+    options.AddSecurityDefinition("Bearer", securityScheme);
+
+    // New v10 requirement: AddSecurityRequirement takes a lambda
+    options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer")] = new List<string>()
+    });
+});
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"];
@@ -78,6 +109,16 @@ builder.Services.AddAuthentication(options =>
 
 var app = builder.Build();
 
+// Enable Swagger Middleware
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger(options => {
+        // Migration guide recommendation for OpenAPI 3.1
+        options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_1;
+    });
+    app.UseSwaggerUI();
+}
+
 // --- SEEDING DATA (ADMIN & ROLES) ---
 using (var scope = app.Services.CreateScope())
 {
@@ -85,7 +126,6 @@ using (var scope = app.Services.CreateScope())
     var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
 
-    // 1. Ensure Roles Exist
     string[] roleNames = ["Admin", "RegistrationDesk", "Radiographer", "Radiologist", "Clinician"];
     foreach (var roleName in roleNames)
     {
@@ -95,8 +135,6 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
-    // 2. Ensure Super User (Admin) exists
-    // Values pulled from appsettings.json for security
     var adminEmail = builder.Configuration["AdminSettings:Email"] ?? "admin@pacs.com";
     var adminPassword = builder.Configuration["AdminSettings:Password"] ?? "Admin123!";
 
