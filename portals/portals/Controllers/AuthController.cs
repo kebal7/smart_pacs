@@ -5,7 +5,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
+using SignInResult = Microsoft.AspNetCore.Identity.SignInResult;
+
 
 namespace portals.Controllers
 {
@@ -17,24 +18,23 @@ namespace portals.Controllers
         private readonly IConfiguration _config;
         private readonly SignInManager<IdentityUser> _signInManager;
 
-        public AuthController(
-            UserManager<IdentityUser> userManager,
-            SignInManager<IdentityUser> signInManager,
-            IConfiguration config)
+        public AuthController(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, IConfiguration config)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _config = config;
         }
 
-        // ---------------- AUTHENTICATION ----------------
-
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto model)
         {
-            if (model.Role == "Admin")
+            if (string.Equals(model.Role, "Admin", StringComparison.OrdinalIgnoreCase))
                 return BadRequest("Cannot register as Admin via API.");
 
+            var allowedRoles = new[] { "Radiographer","Radiologist", "Clinician" };
+            if (string.IsNullOrEmpty(model.Role) || !allowedRoles.Contains(model.Role))
+                return BadRequest("Invalid role specified.");
+            
             var existingUser = await _userManager.FindByEmailAsync(model.Email);
             if (existingUser != null)
                 return BadRequest("User already exists.");
@@ -55,7 +55,7 @@ namespace portals.Controllers
             var user = await _userManager.FindByEmailAsync(model.Email);
             if (user == null) return Unauthorized("Invalid credentials.");
 
-            var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
+            var result = await _signInManager.CheckPasswordSignInAsync(user, model.Password, true);
             
             if (result.IsLockedOut)
                 return StatusCode(403, "This account has been disabled. Please contact the administrator.");
@@ -65,16 +65,25 @@ namespace portals.Controllers
             var roles = await _userManager.GetRolesAsync(user);
             var token = GenerateJwtToken(user, roles);
 
-            return Ok(new { token, role = roles.FirstOrDefault() });
+            //Returning a strongly-typed DTO
+            return Ok(new LoginResponseDto 
+            { 
+                Token = token, 
+                Role = roles.FirstOrDefault() ?? "No Role" 
+            });
         }
-
-        // ---------------- PROFILE MANAGEMENT ----------------
 
         [Authorize]
         [HttpPut("update-password")]
         public async Task<IActionResult> UpdatePassword([FromBody] UpdatePasswordDto model)
         {
-            var user = await _userManager.FindByNameAsync(User.Identity.Name);
+            var username = User.FindFirstValue(ClaimTypes.Name);
+
+            if (string.IsNullOrWhiteSpace(username))
+                return Unauthorized();
+            
+            var user = await _userManager.FindByNameAsync(username);
+            
             if (user == null) return NotFound();
 
             var result = await _userManager.ChangePasswordAsync(user, model.CurrentPassword, model.NewPassword);
@@ -82,29 +91,42 @@ namespace portals.Controllers
 
             return Ok(new { message = "Password updated successfully" });
         }
-        
 
         private string GenerateJwtToken(IdentityUser user, IList<string> roles)
         {
+            var email = user.Email ?? throw new InvalidOperationException("User email missing");
+            var username = user.UserName ?? throw new InvalidOperationException("Username missing");
+            
+
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim(JwtRegisteredClaimNames.Email, email),
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-                new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
-                new Claim(ClaimTypes.Name, user.UserName) // Added for User.Identity.Name
+                new Claim(JwtRegisteredClaimNames.UniqueName, username),
+                new Claim(ClaimTypes.Name, username)
             };
+            
+            roles ??= new List<string>(); 
 
             foreach (var role in roles)
                 claims.Add(new Claim(ClaimTypes.Role, role));
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var secret = _config["Jwt:Key"];
+
+            if (string.IsNullOrWhiteSpace(secret))
+                throw new ArgumentNullException("Jwt:Key is missing from configuration");
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+            
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+            //var expires = int.TryParse(_config["Jwt:ExpiresMinutes"], out var min) ? min : 60;
+            
             var token = new JwtSecurityToken(
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(int.Parse(_config["Jwt:ExpiresMinutes"] ?? "60")),
+                expires: DateTime.UtcNow.AddMinutes(int.TryParse(_config["Jwt:ExpiresMinutes"], out var min) ? min : 60),
                 signingCredentials: creds
             );
 
@@ -116,4 +138,6 @@ namespace portals.Controllers
     public class RegisterDto { public string Email { get; set; } public string Password { get; set; } public string Role { get; set; } }
     public class LoginDto { public string Email { get; set; } public string Password { get; set; } }
     public class UpdatePasswordDto { public string CurrentPassword { get; set; } public string NewPassword { get; set; } }
+    
+    public class LoginResponseDto { public string Token { get; set; } public string Role { get; set; } }
 }
