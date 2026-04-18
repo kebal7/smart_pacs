@@ -124,31 +124,71 @@ namespace portals.Controllers;
             return File(bytes, "application/dicom", fileName);
         }
         
-        [HttpGet("GetWorklist")]
-        public async Task<IActionResult> GetWorklist()
-        {
-            // Fetch directly from Reports
-            var worklist = await _context.Reports
-                .OrderByDescending(r => r.CreatedAt)
-                .Select(r => new
-                {
-                    r.InstanceNumber,
-                    r.ReportIdentifier,
-                    r.PatientIdentifier,
-                    r.PatientName,
-                    r.Modality,
-                    r.CreatedAt,
-                    r.AiSuggestion,
-                    r.IsFinalized,
-                    r.Findings,
-                    // Calculate a status string for the UI
-                    Status = r.IsFinalized ? "Finalized" : 
-                        (!string.IsNullOrEmpty(r.Findings) ? "Draft" : "New")
-                })
-                .ToListAsync();
+[HttpGet("GetWorklist")]
+public async Task<IActionResult> GetWorklist(
+    [FromQuery] int page = 1, 
+    [FromQuery] int pageSize = 10, 
+    [FromQuery] string search = "", 
+    [FromQuery] string status = "All")
+{
+    var query = _context.Reports.AsQueryable();
 
-            return Ok(worklist);
-        }
+    // 1. Search filter
+    if (!string.IsNullOrWhiteSpace(search))
+    {
+        string s = search.ToLower();
+        query = query.Where(r => r.PatientName.ToLower().Contains(s) || 
+                                 r.PatientIdentifier.ToLower().Contains(s) || 
+                                 r.InstanceNumber.Contains(s));
+    }
+
+    // 2. Status filter
+    if (status != "All")
+    {
+        if (status == "New") query = query.Where(r => !r.IsFinalized && string.IsNullOrEmpty(r.Findings));
+        else if (status == "Draft") query = query.Where(r => !r.IsFinalized && !string.IsNullOrEmpty(r.Findings));
+        else if (status == "Finalized") query = query.Where(r => r.IsFinalized);
+    }
+
+    // 3. Get the data
+    var rawData = await query.ToListAsync();
+
+    // 4. HELPER: Extract percentage from string "Label (XX.X%)"
+    double GetPercentage(string aiStr) {
+        if (string.IsNullOrEmpty(aiStr)) return -1;
+        var match = System.Text.RegularExpressions.Regex.Match(aiStr, @"(\d+(\.\d+)?)");
+        return match.Success ? double.Parse(match.Value) : -1;
+    }
+
+    // 5. MASTER SORTING LOGIC:
+    // Priority 1: Unfinalized (New/Draft) first
+    // Priority 2: Highest AI Percentage first
+    // Priority 3: Newest Date first
+    var sortedData = rawData
+        .OrderBy(r => r.IsFinalized) 
+        .ThenByDescending(r => GetPercentage(r.AiSuggestion)) 
+        .ThenByDescending(r => r.CreatedAt)
+        .ToList();
+
+    int totalCount = sortedData.Count;
+    int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+    var pagedData = sortedData
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .Select(r => new {
+            r.InstanceNumber,
+            r.PatientIdentifier,
+            r.PatientName,
+            r.Modality,
+            r.CreatedAt,
+            r.AiSuggestion,
+            r.IsFinalized,
+            r.Findings
+        });
+
+    return Ok(new { totalCount, totalPages, currentPage = page, data = pagedData });
+}
         
 
     [HttpPost("UpdateReport")]

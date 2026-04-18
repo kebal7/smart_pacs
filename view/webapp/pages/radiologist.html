@@ -63,7 +63,7 @@
 
         .search-container { flex-grow: 1; position: relative; }
         #searchInput {
-            width: 100%; padding: 10px 15px; border-radius: 8px;
+            width: 92%; padding: 10px 15px; border-radius: 8px;
             border: 1px solid var(--border); font-size: 0.9rem; outline: none;
             transition: border-color 0.2s;
         }
@@ -135,6 +135,36 @@
             padding: 14px 28px; border-radius: 8px; font-weight: 600;
             cursor: pointer; width: 100%; font-size: 1rem; margin-top: 20px;
         }
+
+                /* Add styles for pagination and filters */
+        .filter-bar {
+            display: flex; gap: 15px; margin-bottom: 20px; align-items: center;
+        }
+        .status-select {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #f8fafc;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-main);
+            outline: none;
+            min-width: 50px; /* Gives dropdowns a fixed comfortable width */
+            cursor: pointer;
+        }
+        .pagination-footer {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 20px; background: white; border-top: 1px solid var(--border);
+        }
+        .btn-page {
+            padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px;
+            background: white; cursor: pointer; font-size: 0.85rem;
+        }
+        .btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* Highlight row if AI risk is high (>70%) */
+        .high-risk-row { background-color: #fff1f2 !important; }
+
     </style>
 </head>
 <body>
@@ -147,32 +177,54 @@
 </header>
 
 <div class="dashboard-container" id="mainContent">
-    <div class="header-flex">
+    <div class="filter-bar">
         <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Search by Patient Name or ID...">
+            <input type="text" id="searchInput" placeholder="Search Patient, ID, or Instance UID...">
         </div>
-        <button id="loadDicoms">🔄 Refresh</button>
+        
+        <select id="statusFilter" class="status-select">
+            <option value="All">All Studies</option>
+            <option value="New">New Studies</option>
+            <option value="Draft">Drafts</option>
+            <option value="Finalized">Finalized</option>
+        </select>
+
+        <select id="pageSizeSelect" class="status-select">
+            <option value="10">10 per page</option>
+            <option value="25">25 per page</option>
+            <option value="50">50 per page</option>
+        </select>
+
+        <button id="loadDicoms" onclick="loadWorklist()">🔄 Refresh</button>
     </div>
 
     <div class="table-card">
         <table id="dicomTable">
             <thead>
                 <tr>
-                    <th onclick="toggleSort('patientName')">Patient Details</th>
-                    <th onclick="toggleSort('isFinalized')">Status</th>
+                    <th>Patient Details</th>
+                    <th>Status</th>
                     <th>Modality</th>
-                    <th onclick="toggleSort('createdAt')">Study Date</th>
+                    <th>Study Date</th>
                     <th style="text-align: right;">Actions</th>
                 </tr>
             </thead>
             <tbody id="worklistBody">
-                <tr>
-                    <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">
-                        Loading studies...
-                    </td>
-                </tr>
+                <!-- Data here -->
             </tbody>
         </table>
+
+        <!-- Pagination Footer -->
+        <div class="pagination-footer">
+            <div style="font-size: 0.85rem; color: var(--text-muted);">
+                Page <span id="pageNum">1</span> of <span id="totalPageNum">1</span> 
+                (<span id="totalEntryNum">0</span> studies)
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button id="prevBtn" class="btn-page">Previous</button>
+                <button id="nextBtn" class="btn-page">Next</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -187,8 +239,134 @@
 </div>
 
 <script>
-    // Initialize Icons
+
     lucide.createIcons();
+
+    // --- STATE ---
+    let currentPage = 1;
+    let pageSize = 10;
+    let currentSearch = "";
+    let currentStatus = "All";
+    let totalPages = 1;
+
+    async function loadWorklist() {
+        const tbody = document.getElementById('worklistBody');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:40px;">Syncing with PACS...</td></tr>';
+
+        try {
+            const url = `http://localhost:5266/api/Radiologist/GetWorklist?page=${currentPage}&pageSize=${pageSize}&search=${encodeURIComponent(currentSearch)}&status=${currentStatus}`;
+            
+            const response = await fetch(url, { headers: getAuthHeaders() });
+            if (await handleAuthError(response)) return;
+
+            const result = await response.json();
+            
+            // Update UI State
+            totalPages = result.totalPages;
+            document.getElementById("pageNum").innerText = result.currentPage;
+            document.getElementById("totalPageNum").innerText = result.totalPages;
+            document.getElementById("totalEntryNum").innerText = result.totalCount;
+            document.getElementById("prevBtn").disabled = (currentPage <= 1);
+            document.getElementById("nextBtn").disabled = (currentPage >= totalPages);
+
+            renderTable(result.data);
+        } catch (error) {
+            console.error("Fetch Error:", error);
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Connection Error</td></tr>';
+        }
+    }
+
+    function getAiPct(suggestion) {
+        const m = (suggestion || "").match(/(\d+(\.\d+)?)/);
+        return m ? parseFloat(m[0]) : 0;
+    }
+
+    function renderTable(data) {
+        const tbody = document.getElementById('worklistBody');
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:40px;">No studies found matching criteria.</td></tr>';
+            return;
+        }
+
+        data.forEach(report => {
+            let statusText = report.isFinalized ? "Finalized" : (report.findings ? "Draft" : "New");
+            let statusClass = report.isFinalized ? "status-finalized" : (report.findings ? "status-draft" : "status-new");
+
+            // AI Logic
+            let aiHtml = "";
+            let isHighRisk = false;
+            if (!report.isFinalized) {
+                if (report.aiSuggestion) {
+                    const firstItem = report.aiSuggestion.split(',')[0];
+                    const label = firstItem.split('(')[0].trim();
+                    const pct = getAiPct(firstItem);
+                    isHighRisk = pct > 70; // Mark as high risk if > 70%
+                    
+                    let colorStyle = pct >= 50 ? "background:#fff1f2; color:#e11d48; border-color:#fecdd3;" : 
+                                     pct >= 30 ? "background:#fefce8; color:#a16207; border-color:#fef08a;" : 
+                                                 "background:#f0fdf4; color:#15803d; border-color:#bbf7d0;";
+
+                    aiHtml = `<div class="ai-flag" style="${colorStyle} font-weight:600;">🤖 ${label}: ${pct}%</div>`;
+                } else {
+                    aiHtml = `<div class="ai-flag" style="color:#94a3b8;">⚪ No AI</div>`;
+                }
+            }
+
+            const tr = document.createElement('tr');
+            if (isHighRisk) tr.className = 'high-risk-row';
+
+            tr.innerHTML = `
+                <td>
+                    <div style="font-weight:600;">${report.patientName}</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace;">${report.patientIdentifier}</div>
+                    ${aiHtml}
+                </td>
+                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td><span class="modality-badge">${report.modality || 'IMG'}</span></td>
+                <td><div style="font-size:0.8rem;">${new Date(report.createdAt).toLocaleString()}</div></td>
+                <td style="text-align: right;">
+                    <a href="viewer.html?instanceId=${report.instanceNumber}" class="btn-action btn-view" target="_blank">👁️ View</a>
+                    <button class="btn-action" style="border:none; cursor:pointer;" onclick="downloadDicom('${report.instanceNumber}')">📥</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // --- EVENT LISTENERS ---
+
+    // Debounced Search
+    let searchTimeout;
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            currentSearch = e.target.value;
+            currentPage = 1;
+            loadWorklist();
+        }, 500);
+    });
+
+    document.getElementById('statusFilter').addEventListener('change', (e) => {
+        currentStatus = e.target.value;
+        currentPage = 1;
+        loadWorklist();
+    });
+
+    document.getElementById('pageSizeSelect').addEventListener('change', (e) => {
+        pageSize = e.target.value;
+        currentPage = 1;
+        loadWorklist();
+    });
+
+    document.getElementById('prevBtn').addEventListener('click', () => {
+        if (currentPage > 1) { currentPage--; loadWorklist(); }
+    });
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
+        if (currentPage < totalPages) { currentPage++; loadWorklist(); }
+    });
 
     // --- AUTH HELPERS ---
     function logout() {
@@ -212,114 +390,6 @@
         }
         return false;
     }
-
-    // --- WORKLIST LOGIC ---
-    let allReports = []; 
-    let currentSort = { column: 'isFinalized', asc: true };
-
-    async function loadWorklist() {
-        const btn = document.getElementById('loadDicoms');
-        btn.disabled = true;
-        btn.innerText = 'Syncing...';
-
-        try {
-            const response = await fetch('http://localhost:5266/api/Radiologist/GetWorklist', {
-                headers: getAuthHeaders()
-            });
-
-            if (await handleAuthError(response)) return;
-
-            allReports = await response.json();
-            renderTable();
-        } catch (error) {
-            console.error("Fetch Error:", error);
-            alert("Connection error.");
-        } finally {
-            btn.disabled = false;
-            btn.innerText = '🔄 Refresh';
-        }
-    }
-
-    function getAiPct(suggestion) {
-        const m = (suggestion || "").match(/(\d+(\.\d+)?)/);
-        return m ? parseFloat(m[0]) : 0;
-    }
-
-    function renderTable() {
-        const tbody = document.getElementById('worklistBody');
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        
-        let filtered = allReports.filter(r => 
-            r.patientName.toLowerCase().includes(searchTerm) || 
-            r.patientIdentifier.toLowerCase().includes(searchTerm)
-        );
-
-        // Sorting Logic
-        filtered.sort((a, b) => {
-            if (a.isFinalized !== b.isFinalized) return a.isFinalized ? 1 : -1;
-            let valA = a[currentSort.column];
-            let valB = b[currentSort.column];
-
-            if (currentSort.column === 'createdAt') {
-                return currentSort.asc ? new Date(valA) - new Date(valB) : new Date(valB) - new Date(valA);
-            }
-            if (valA < valB) return currentSort.asc ? -1 : 1;
-            if (valA > valB) return currentSort.asc ? 1 : -1;
-            return getAiPct(b.aiSuggestion) - getAiPct(a.aiSuggestion);
-        });
-
-        tbody.innerHTML = '';
-        filtered.forEach(report => {
-            let statusText = report.isFinalized ? "Finalized" : (report.findings ? "Draft" : "New");
-            let statusClass = report.isFinalized ? "status-finalized" : (report.findings ? "status-draft" : "status-new");
-
-            // --- AI OVERVIEW FLAG LOGIC (RESTORED) ---
-            let aiHtml = "";
-            if (!report.isFinalized) {
-                if (report.aiSuggestion && typeof report.aiSuggestion === 'string' && report.aiSuggestion.trim() !== "") {
-                    const firstItem = report.aiSuggestion.split(',')[0];
-                    const label = firstItem.split('(')[0].trim();
-                    const pct = getAiPct(firstItem);
-                    
-                    let colorStyle = pct >= 50 ? "background:#fff1f2; color:#e11d48; border-color:#fecdd3;" : 
-                                     pct >= 30 ? "background:#fefce8; color:#a16207; border-color:#fef08a;" : 
-                                                 "background:#f0fdf4; color:#15803d; border-color:#bbf7d0;";
-
-                    aiHtml = `<div class="ai-flag" style="${colorStyle} font-weight:600;">🤖 ${label}: ${pct}%</div>`;
-                } else {
-                    aiHtml = `<div class="ai-flag" style="color:#94a3b8;">⚪ No AI</div>`;
-                }
-            }
-
-            const dateStr = new Date(report.createdAt).toLocaleDateString('en-GB', {
-                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-            });
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>
-                    <div style="font-weight:600;">${report.patientName}</div>
-                    <div style="font-size:0.75rem; color:var(--text-muted); font-family:monospace;">${report.patientIdentifier}</div>
-                    ${aiHtml}
-                </td>
-                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                <td><span class="modality-badge">${report.modality || 'IMG'}</span></td>
-                <td><div style="font-size:0.8rem;">${dateStr}</div></td>
-                <td style="text-align: right;">
-                    <a href="viewer.html?instanceId=${report.instanceNumber}" class="btn-action btn-view" target="_blank">👁️ View</a>
-                    <a href="#" class="btn-action" onclick="downloadDicom('${report.instanceNumber}')">📥</a>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
-
-    function toggleSort(column) {
-        currentSort.asc = (currentSort.column === column) ? !currentSort.asc : true;
-        currentSort.column = column;
-        renderTable();
-    }
-
 
     async function downloadDicom(instanceId) {
         try {
@@ -363,8 +433,6 @@
         }
     }
 
-    document.getElementById('loadDicoms').addEventListener('click', loadWorklist);
-    document.getElementById('searchInput').addEventListener('input', renderTable);
     
     // Initial Load
     window.onload = () => {
