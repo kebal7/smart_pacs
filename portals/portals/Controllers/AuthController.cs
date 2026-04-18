@@ -101,6 +101,7 @@ namespace portals.Controllers
             var roles = await _userManager.GetRolesAsync(user);
             var token = GenerateJwtToken(user, roles);
 
+            Console.WriteLine(roles);
             //Returning a strongly-typed DTO
             return Ok(new LoginResponseDto 
             { 

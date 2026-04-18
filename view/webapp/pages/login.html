@@ -111,19 +111,30 @@
         const email = document.getElementById('loginEmail').value;
         const password = document.getElementById('loginPassword').value;
         
-        const result = await login(email, password);
+                const result = await login(email, password);
+                console.log("Auth Result:", result);
 
-        if (result.token) {
-            // Redirect based on role
-            console.log(result.role);
-            if (result.role === "Admin") {
-                window.location.href = "./admin.html";
-            }else {
-                window.location.href = "./radiographer.html";
-            }
-        } else {
-            alert(result.error || "Login failed");
-        }
+                if (result.token) {
+                    // THE FIX: Redirect based on the ROLE returned from server
+                    const role = result.role; 
+
+                    if (role === "Admin") {
+                        window.location.href = "./admin.html";
+                    } else if (role === "Radiographer") {
+                        window.location.href = "./radiographer.html";
+                    } else if (role === "Radiologist") {
+                        window.location.href = "./radiologist.html";
+                    } else if (role === "Clinician") {
+                        window.location.href = "./clinician.html";
+                    } else {
+                        // Fallback if role is unexpected
+                        alert("Login success, but role '" + role + "' has no assigned dashboard.");
+                    }
+                } else {
+                    // Handle case where server sent 200 but no token (unlikely) or error
+                    errorDiv.innerText = result.error || "Invalid credentials.";
+                    errorDiv.style.display = "block";
+                }
     });
 
 </script>

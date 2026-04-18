@@ -16,7 +16,7 @@ export async function login(email, password) {
         const data = await res.json();
         // Standardize the key name here
         localStorage.setItem("jwtToken", data.token); 
-        console.log(data);
+
         return data; // Returns { token, role }
 
     } catch (err) {

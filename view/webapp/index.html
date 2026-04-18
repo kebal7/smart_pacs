@@ -2,8 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Login</title>
+    <title>Login | SmartPACS</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Ensuring the alert or messages don't break the layout */
+        .error-msg { color: #ef4444; font-size: 0.85rem; margin-top: 10px; display: none; }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -11,26 +15,61 @@
         <form id="loginForm">
             <input type="email" id="loginEmail" placeholder="Email" required>
             <input type="password" id="loginPassword" placeholder="Password" required>
-            <button type="submit" class="login">Login</button>
+            <button type="submit" class="login" id="loginBtn">Login</button>
+            <div id="errorMessage" class="error-msg"></div>
         </form>
-        <p class="link">Don't have an account? <a href="../pages/register.html">Register</a></p>
+        <p class="link">Don't have an account? <a href="./pages/register.html">Register</a></p>
     </div>
 
     <script type="module">
         import { login } from './js/auth.js';
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        const loginForm = document.getElementById('loginForm');
+        const errorDiv = document.getElementById('errorMessage');
+        const loginBtn = document.getElementById('loginBtn');
+
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // UI Feedback
+            loginBtn.innerText = "Authenticating...";
+            loginBtn.disabled = true;
+            errorDiv.style.display = "none";
+
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
-            const result = await login(email, password);
-            console.log(result);
 
-            if(result.token){
-                alert("Login successful!");
-                window.location.href = "./pages/radiographer.html"; // redirect to portal
-            } else {
-                alert(result || "Login failed");
+            try {
+                const result = await login(email, password);
+                console.log("Auth Result:", result);
+
+                if (result.token) {
+                    // THE FIX: Redirect based on the ROLE returned from server
+                    const role = result.role; 
+
+                    if (role === "Admin") {
+                        window.location.href = "./pages/admin.html";
+                    } else if (role === "Radiographer") {
+                        window.location.href = "./pages/radiographer.html";
+                    } else if (role === "Radiologist") {
+                        window.location.href = "./pages/radiologist.html";
+                    } else if (role === "Clinician") {
+                        window.location.href = "./pages/clinician.html";
+                    } else {
+                        // Fallback if role is unexpected
+                        alert("Login success, but role '" + role + "' has no assigned dashboard.");
+                    }
+                } else {
+                    // Handle case where server sent 200 but no token (unlikely) or error
+                    errorDiv.innerText = result.error || "Invalid credentials.";
+                    errorDiv.style.display = "block";
+                }
+            } catch (err) {
+                errorDiv.innerText = "Connection to PACS server failed.";
+                errorDiv.style.display = "block";
+            } finally {
+                loginBtn.innerText = "Login";
+                loginBtn.disabled = false;
             }
         });
     </script>
