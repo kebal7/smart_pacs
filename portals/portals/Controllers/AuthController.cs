@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -46,7 +47,7 @@ namespace portals.Controllers
                 return BadRequest(result.Errors);
 
             await _userManager.AddToRoleAsync(user, model.Role);
-            return Ok(new { message = "User registered successfully" });
+            return CreatedAtAction(nameof(Register), new { message = "User registered successfully" });
         }
 
         [HttpPost("login")]
@@ -135,7 +136,19 @@ namespace portals.Controllers
     }
 
     // --- DTOs ---
-    public class RegisterDto { public string Email { get; set; } public string Password { get; set; } public string Role { get; set; } }
+    public class RegisterDto
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } 
+        
+        [Required]
+        [MinLength(6)]
+        public string Password { get; set; } 
+        
+        [Required]
+        public string Role { get; set; }
+    }
     public class LoginDto { public string Email { get; set; } public string Password { get; set; } }
     public class UpdatePasswordDto { public string CurrentPassword { get; set; } public string NewPassword { get; set; } }
     

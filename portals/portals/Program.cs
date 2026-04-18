@@ -5,20 +5,20 @@ using Microsoft.EntityFrameworkCore;
 using portals.Data;
 using Microsoft.IdentityModel.Tokens;
 using portals.services;
-using Microsoft.OpenApi; // Flattened namespace for v10
+using Microsoft.OpenApi;
+using portals.Filters; // v10 flattened namespace
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- Services ---
+// --- 1. SERVICES ---
 builder.Services.AddScoped<IDicomService, DicomService>();
 
-// Configure PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Configure Identity with Roles
 builder.Services.AddDefaultIdentity<IdentityUser>(options => 
 {
+    options.User.RequireUniqueEmail = true;
     options.SignIn.RequireConfirmedAccount = false;
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 6;
@@ -33,7 +33,6 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options =>
 .AddRoles<IdentityRole>() 
 .AddEntityFrameworkStores<ApplicationDbContext>();
 
-// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowLocalhost5500", policy =>
@@ -50,37 +49,32 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 
-// --- SWAGGER CONFIGURATION (v10 / .NET 10 compatible) ---
+// --- 2. THE BUG-FIXED SWAGGER CONFIGURATION ---
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo 
-    { 
-        Title = "Smart PACS API", 
-        Version = "v1" 
-    });
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "Smart PACS API", Version = "v1" });
 
-    // Define the JWT Security Scheme
-    var securityScheme = new OpenApiSecurityScheme
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
-        Description = "Enter JWT Bearer token **_only_**",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
         Scheme = "bearer", 
-        BearerFormat = "JWT"
-    };
+        BearerFormat = "JWT",
+        Description = "Enter JWT Bearer token only"
+    });
 
-    options.AddSecurityDefinition("Bearer", securityScheme);
-
-    // New v10 requirement: AddSecurityRequirement takes a lambda
-    options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
+    // WORKAROUND FOR GITHUB ISSUE #64524:
+    // We take the 'doc' provided by the Func and pass it into the reference constructor.
+    // This allows the reference to resolve, creating the Padlock in the UI.
+    options.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
     {
-        [new OpenApiSecuritySchemeReference("Bearer")] = new List<string>()
+        [new OpenApiSecuritySchemeReference("Bearer", doc)] = new List<string>()
     });
 });
 
-// JWT Authentication
+// --- 3. AUTHENTICATION ---
 var jwtKey = builder.Configuration["Jwt:Key"];
 if (string.IsNullOrEmpty(jwtKey)) throw new Exception("JWT Key is missing in configuration!");
 var key = Encoding.UTF8.GetBytes(jwtKey);
@@ -107,19 +101,19 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
+// --- 4. BUILD THE APP ---
 var app = builder.Build();
 
-// Enable Swagger Middleware
+// --- 5. MIDDLEWARE PIPELINE ---
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger(options => {
-        // Migration guide recommendation for OpenAPI 3.1
-        options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_1;
-    });
+    app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// --- SEEDING DATA (ADMIN & ROLES) ---
+// --- 6. SEEDING DATA ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -150,14 +144,15 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// --- Middleware ---
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseCors("AllowLocalhost5500");
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
+

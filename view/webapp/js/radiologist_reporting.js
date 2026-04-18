@@ -10,12 +10,15 @@ async function runAIAnalysis() {
     resDiv.innerHTML = "AI Analyzing Study...";
 
     try {
-        const dicomRes = await fetch(`http://localhost:5266/api/Radiologist/DownloadDicom?instanceId=${instanceId}`);
-        const blob = await dicomRes.blob();
-        const formData = new FormData();
-        formData.append("file", new File([blob], "study.dcm"));
+        const aiRes = await fetch(`http://localhost:5266/api/Radiologist/AnalyzeWithAi/${instanceId}`, { 
+            method: "POST" 
+        });
 
-        const aiRes = await fetch("http://localhost:8001/predict", { method: "POST", body: formData });
+        if (!aiRes.ok) {
+            const errorText = await aiRes.text();
+            throw new Error(errorText || "Backend AI Proxy error");
+        }
+
         const data = await aiRes.json();
 
         // 1. Sort ALL predictions by probability descending

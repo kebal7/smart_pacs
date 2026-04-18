@@ -2,25 +2,31 @@ using Microsoft.AspNetCore.Mvc;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using portals.Data;
 using portals.Models;
 
 namespace portals.Controllers;
 
+    [Authorize(Roles = "Radiologist", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [ApiController]
     [Route("api/[controller]")]
+    
     public class RadiologistController : Controller
     {
         private readonly string orthancUrl = "http://localhost:8042";
         private readonly string orthancUser = "orthanc";
         private readonly string orthancPassword = "orthanc";
+        private readonly IConfiguration _config;
 
         private readonly ApplicationDbContext _context;
         
-        public RadiologistController(ApplicationDbContext context)
+        public RadiologistController(ApplicationDbContext context, IConfiguration config)
         {
             _context = context;
+            _config = config;
         }
         
         private HttpClient CreateClient()
@@ -41,32 +47,48 @@ namespace portals.Controllers;
             return View();
         }
 
+        private async Task<IActionResult> CallOrthanc(Func<HttpClient, Task<HttpResponseMessage>> action)
+        {
+            using var client = CreateClient();
+            try
+            {
+                var response = await action(client);
+        
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    return StatusCode((int)response.StatusCode, $"Orthanc error: {error}");
+                }
+
+                // Return the raw content or stream depending on what you need
+                var content = await response.Content.ReadAsStringAsync();
+                return Content(content, "application/json");
+            }
+            catch (HttpRequestException ex) when (ex.InnerException is System.Net.Sockets.SocketException)
+            {
+                // This catches "Connection Refused" specifically
+                return StatusCode(503, new { message = "PACS Server (Orthanc) is currently unreachable. Please check if the service is running." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"Internal error communicating with Orthanc: {ex.Message}" });
+            }
+        }
+        
         // GET: /Radiologist/ListDicoms
         [HttpGet("ListDicoms")] 
         public async Task<IActionResult> ListDicoms()
         {
-            using var client = CreateClient();
-            var response = await client.GetAsync("instances");
-            if (!response.IsSuccessStatusCode)
-                return StatusCode(500, "Failed to fetch DICOM instances from Orthanc");
-
-            var instanceIds = await response.Content.ReadAsStringAsync();
-            return Content(instanceIds, "application/json");
+            return await CallOrthanc(c => c.GetAsync("instances"));
         }
         
         
 
         // GET: /Radiologist/GetDicomMetadata?instanceId=xxx
-        [HttpGet("GetDicomMetadata/{id}")]
+        [HttpGet("GetDicomMetadata/{instanceId}")]
         public async Task<IActionResult> GetDicomMetadata(string instanceId)
         {
-            using var client = CreateClient();
-            var response = await client.GetAsync($"instances/{instanceId}/tags");
-            if (!response.IsSuccessStatusCode)
-                return StatusCode(500, "Failed to fetch DICOM metadata");
-
-            var metadata = await response.Content.ReadAsStringAsync();
-            return Content(metadata, "application/json");
+            return await CallOrthanc(c => c.GetAsync($"instances/{instanceId}/tags"));
         }
 
         // GET: /Radiologist/DownloadDicom?instanceId=xxx
@@ -127,7 +149,6 @@ namespace portals.Controllers;
             return Ok(worklist);
         }
         
-        // Inside RadiologistController.cs
 
     [HttpPost("UpdateReport")]
     public async Task<IActionResult> UpdateReport([FromBody] UpdateReportRequest model)
@@ -244,5 +265,39 @@ namespace portals.Controllers;
 
             // Return every single field for the print template
             return Ok(report); 
+        }
+        
+        [HttpPost("AnalyzeWithAi/{instanceId}")]
+        public async Task<IActionResult> AnalyzeWithAi(string instanceId)
+        {
+            try
+            {
+                using var orthancClient = CreateClient();
+                var dicomRes = await orthancClient.GetAsync($"instances/{instanceId}/file");
+                if (!dicomRes.IsSuccessStatusCode) return StatusCode(500, "Orthanc Error");
+                var fileBytes = await dicomRes.Content.ReadAsByteArrayAsync();
+
+                string aiUrl = _config["AiService:BaseUrl"];
+                string aiKey = _config["AiService:InternalKey"];
+                
+                using var aiClient = new HttpClient();
+        
+                aiClient.DefaultRequestHeaders.Add("X-Internal-Key", aiKey);
+                
+                using var content = new MultipartFormDataContent();
+                var fileContent = new ByteArrayContent(fileBytes);
+                content.Add(fileContent, "file", "image.dcm");
+
+                var aiResponse = await aiClient.PostAsync($"{aiUrl}/predict", content);
+        
+                if (!aiResponse.IsSuccessStatusCode) 
+                    return StatusCode((int)aiResponse.StatusCode, "AI Service rejected request");
+
+                return Content(await aiResponse.Content.ReadAsStringAsync(), "application/json");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
     }

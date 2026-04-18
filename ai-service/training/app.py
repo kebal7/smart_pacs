@@ -1,8 +1,8 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Query
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from PIL import Image
-import io, os, json
+import io, os, json, traceback
 import numpy as np
 import pydicom
 import httpx
@@ -12,15 +12,29 @@ from model import predict_pil, generate_gradcam, all_labels, NotXrayError
 
 load_dotenv()
 
+INTERNAL_AUTH_KEY = os.getenv("INTERNAL_AUTH_KEY", "change-this-in-production")
+
+# 1. RESTRICT CORS
+# Only allow NET backend and your local dev environment
 app = FastAPI(title="Chest X-ray AI", version="2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5266"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["POST"],
     allow_headers=["*"],
 )
+
+# 2. THE SECURITY CHECK FUNCTION
+def verify_internal_key(x_internal_key: str = Header(None)):
+    """
+    FastAPI will look for a Header called 'X-Internal-Key'.
+    If it doesn't match our secret, it returns 403 Forbidden.
+    """
+    if x_internal_key != INTERNAL_AUTH_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden: Internal Access Only")
+    return True
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
@@ -72,7 +86,7 @@ def health():
 
 
 # ─────────────────────────────────────────────
-@app.post("/predict")
+@app.post("/predict",  dependencies=[Depends(verify_internal_key)])
 async def predict_xray(
     file: UploadFile = File(...),
     threshold: float = 0.2
@@ -98,7 +112,7 @@ async def predict_xray(
 
 
 # ─────────────────────────────────────────────
-@app.post("/gradcam")
+@app.post("/gradcam",  dependencies=[Depends(verify_internal_key)])
 async def gradcam_endpoint(
     file: UploadFile = File(...),
     class_index: int = Query(None)
@@ -132,7 +146,7 @@ async def gradcam_endpoint(
 
 
 # ─────────────────────────────────────────────
-@app.post("/icd10")
+@app.post("/icd10",  dependencies=[Depends(verify_internal_key)])
 async def icd10_mapping(body: dict):
     diseases = body.get("diseases", [])
 
