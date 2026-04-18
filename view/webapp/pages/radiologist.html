@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartPACS | Radiologist Worklist</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -14,6 +15,7 @@
             --text-main: #1e293b;
             --text-muted: #64748b;
             --border: #e2e8f0;
+            --danger: #ef4444;
         }
 
         body {
@@ -21,10 +23,35 @@
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            transition: filter 0.3s;
         }
 
-        .dashboard-container { max-width: 1200px; margin: 0 auto; }
+        /* Top Brand Bar matching Patient Page */
+        header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        header h1 { font-size: 1.25rem; margin: 0; font-weight: 700; }
+
+        .btn-logout {
+            background: transparent;
+            color: #cbd5e1;
+            border: 1px solid #475569;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex; align-items: center; gap: 5px;
+        }
+
+        .dashboard-container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
 
         .header-flex {
             display: flex;
@@ -34,37 +61,13 @@
             gap: 20px;
         }
 
-        .search-container {
-            flex-grow: 1;
-            position: relative;
-        }
-
+        .search-container { flex-grow: 1; position: relative; }
         #searchInput {
-            width: 100%;
-            padding: 10px 15px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            font-size: 0.9rem;
-            outline: none;
+            width: 100%; padding: 10px 15px; border-radius: 8px;
+            border: 1px solid var(--border); font-size: 0.9rem; outline: none;
             transition: border-color 0.2s;
         }
-
         #searchInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
-
-        h1 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 0;
-        }
-
-        h1::before {
-            content: ''; width: 12px; height: 24px;
-            background: var(--accent); border-radius: 4px;
-        }
 
         #loadDicoms {
             background-color: var(--accent);
@@ -74,25 +77,18 @@
         }
 
         .table-card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            background: var(--card-bg); border-radius: 12px;
+            border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             overflow: hidden;
         }
 
         table { width: 100%; border-collapse: collapse; text-align: left; }
         thead { background-color: #f8fafc; border-bottom: 2px solid var(--border); }
         th { 
-            padding: 16px; 
-            font-size: 0.75rem; 
-            text-transform: uppercase; 
-            color: var(--text-muted); 
-            cursor: pointer;
-            user-select: none;
+            padding: 16px; font-size: 0.75rem; text-transform: uppercase; 
+            color: var(--text-muted); cursor: pointer; user-select: none;
         }
         th:hover { color: var(--accent); }
-        th::after { content: ' ↕'; opacity: 0.3; font-size: 0.6rem; }
         
         td { padding: 16px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
         
@@ -109,6 +105,7 @@
             padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700;
         }
 
+        /* --- THE AI FLAG STYLES (RESTORED) --- */
         .ai-flag {
             display: inline-flex; align-items: center; gap: 4px;
             padding: 2px 8px; border-radius: 4px; font-size: 0.7rem;
@@ -121,13 +118,36 @@
         }
         .btn-view { background-color: #f1f5f9; color: var(--accent); margin-right: 5px; }
         .btn-view:hover { background-color: var(--accent); color: white; }
+
+        /* Auth Error Modal matching Patient Page */
+        #authErrorModal {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(4px); z-index: 9999; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: white; padding: 40px; border-radius: 12px;
+            max-width: 450px; width: 90%; text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .btn-relogin {
+            background: var(--accent); color: white; border: none;
+            padding: 14px 28px; border-radius: 8px; font-weight: 600;
+            cursor: pointer; width: 100%; font-size: 1rem; margin-top: 20px;
+        }
     </style>
 </head>
 <body>
 
-<div class="dashboard-container">
+<header>
+    <h1>SmartPACS <span style="font-weight: 300; opacity: 0.7; margin-left: 10px;">| Worklist</span></h1>
+    <button class="btn-logout" onclick="logout()">
+        <i data-lucide="log-out" size="14"></i> Logout
+    </button>
+</header>
+
+<div class="dashboard-container" id="mainContent">
     <div class="header-flex">
-        <h1>Worklist</h1>
         <div class="search-container">
             <input type="text" id="searchInput" placeholder="Search by Patient Name or ID...">
         </div>
@@ -156,8 +176,45 @@
     </div>
 </div>
 
+<!-- Security Modal -->
+<div id="authErrorModal">
+    <div class="modal-content">
+        <i data-lucide="shield-alert" size="54" style="color:var(--danger); margin-bottom:15px;"></i>
+        <h2>Session Expired</h2>
+        <p>Your security token is invalid or has expired. Please sign in again to access the worklist.</p>
+        <button class="btn-relogin" onclick="logout()">Return to Login</button>
+    </div>
+</div>
+
 <script>
-    let allReports = []; // Store raw data
+    // Initialize Icons
+    lucide.createIcons();
+
+    // --- AUTH HELPERS ---
+    function logout() {
+        localStorage.removeItem('jwtToken');
+        window.location.href = "login.html";
+    }
+
+    // Check for token immediately
+    if (!localStorage.getItem('jwtToken')) logout();
+
+    const getAuthHeaders = () => ({
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${localStorage.getItem('jwtToken')}`
+    });
+
+    async function handleAuthError(res) {
+        if (res.status === 401 || res.status === 403) {
+            document.getElementById('authErrorModal').style.display = 'flex';
+            document.getElementById('mainContent').style.filter = 'blur(8px)';
+            return true;
+        }
+        return false;
+    }
+
+    // --- WORKLIST LOGIC ---
+    let allReports = []; 
     let currentSort = { column: 'isFinalized', asc: true };
 
     async function loadWorklist() {
@@ -166,7 +223,12 @@
         btn.innerText = 'Syncing...';
 
         try {
-            const response = await fetch('http://localhost:5266/api/Radiologist/GetWorklist');
+            const response = await fetch('http://localhost:5266/api/Radiologist/GetWorklist', {
+                headers: getAuthHeaders()
+            });
+
+            if (await handleAuthError(response)) return;
+
             allReports = await response.json();
             renderTable();
         } catch (error) {
@@ -187,39 +249,31 @@
         const tbody = document.getElementById('worklistBody');
         const searchTerm = document.getElementById('searchInput').value.toLowerCase();
         
-        // 1. Filter
         let filtered = allReports.filter(r => 
             r.patientName.toLowerCase().includes(searchTerm) || 
             r.patientIdentifier.toLowerCase().includes(searchTerm)
         );
 
-        // 2. Sort
+        // Sorting Logic
         filtered.sort((a, b) => {
-            // Priority 0: Always smash finalized to bottom regardless of other sorts
             if (a.isFinalized !== b.isFinalized) return a.isFinalized ? 1 : -1;
-
             let valA = a[currentSort.column];
             let valB = b[currentSort.column];
 
-            // If sorting by date
             if (currentSort.column === 'createdAt') {
                 return currentSort.asc ? new Date(valA) - new Date(valB) : new Date(valB) - new Date(valA);
             }
-
-            // Default Alpha sort
             if (valA < valB) return currentSort.asc ? -1 : 1;
             if (valA > valB) return currentSort.asc ? 1 : -1;
-
-            // If everything else is tied, sort by AI Priority (%)
             return getAiPct(b.aiSuggestion) - getAiPct(a.aiSuggestion);
         });
 
-        // 3. Render
         tbody.innerHTML = '';
         filtered.forEach(report => {
             let statusText = report.isFinalized ? "Finalized" : (report.findings ? "Draft" : "New");
             let statusClass = report.isFinalized ? "status-finalized" : (report.findings ? "status-draft" : "status-new");
 
+            // --- AI OVERVIEW FLAG LOGIC (RESTORED) ---
             let aiHtml = "";
             if (!report.isFinalized) {
                 if (report.aiSuggestion && typeof report.aiSuggestion === 'string' && report.aiSuggestion.trim() !== "") {
@@ -253,7 +307,7 @@
                 <td><div style="font-size:0.8rem;">${dateStr}</div></td>
                 <td style="text-align: right;">
                     <a href="viewer.html?instanceId=${report.instanceNumber}" class="btn-action btn-view" target="_blank">👁️ View</a>
-                    <a href="http://localhost:5266/api/Radiologist/DownloadDicom?instanceId=${report.instanceNumber}" class="btn-action">📥</a>
+                    <a href="#" class="btn-action" onclick="downloadDicom('${report.instanceNumber}')">📥</a>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -261,19 +315,62 @@
     }
 
     function toggleSort(column) {
-        if (currentSort.column === column) {
-            currentSort.asc = !currentSort.asc;
-        } else {
-            currentSort.column = column;
-            currentSort.asc = true;
-        }
+        currentSort.asc = (currentSort.column === column) ? !currentSort.asc : true;
+        currentSort.column = column;
         renderTable();
     }
 
-    // Event Listeners
+
+    async function downloadDicom(instanceId) {
+        try {
+            const response = await fetch(`http://localhost:5266/api/Radiologist/DownloadDicom?instanceId=${instanceId}`, {
+                headers: getAuthHeaders() // Passes the Bearer Token securely!
+            });
+
+            if (await handleAuthError(response)) return;
+
+            if (!response.ok) throw new Error("Failed to download file.");
+
+            // Extract the filename from the response headers (or use fallback)
+            const disposition = response.headers.get('content-disposition');
+            let filename = `study-${instanceId}.dcm`;
+            if (disposition && disposition.indexOf('filename=') !== -1) {
+                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                const matches = filenameRegex.exec(disposition);
+                if (matches != null && matches[1]) { 
+                    filename = matches[1].replace(/['"]/g, '');
+                }
+            }
+
+            // Convert network stream to pure binary blob
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            
+            // Ghost click to trigger browser download prompt
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Cleanup memory
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error("Download failed:", error);
+            alert("Unable to download DICOM file.");
+        }
+    }
+
     document.getElementById('loadDicoms').addEventListener('click', loadWorklist);
     document.getElementById('searchInput').addEventListener('input', renderTable);
-    window.onload = loadWorklist;
+    
+    // Initial Load
+    window.onload = () => {
+        loadWorklist();
+        lucide.createIcons();
+    };
 </script>
 </body>
 </html>

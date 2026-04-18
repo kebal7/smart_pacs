@@ -3,6 +3,22 @@ const reportParams = new URLSearchParams(window.location.search);
 const instanceId = reportParams.get("instanceId");
 let currentAiSummary = "";
 
+    function getAuthHeaders() {
+        return {
+            "Authorization": `Bearer ${localStorage.getItem('jwtToken')}`,
+            "Content-Type": "application/json"
+        };
+    }
+
+    async function handleAuthError(res) {
+        if (res.status === 401 || res.status === 403) {
+            document.getElementById('authErrorModal').style.display = 'flex';
+            document.getElementById('mainContent').style.filter = 'blur(8px)';
+            return true;
+        }
+        return false;
+    }
+
 // --- 1. AI LOGIC (FastAPI Port 8001) ---
 async function runAIAnalysis() {
     const resDiv = document.getElementById('aiResults');
@@ -11,8 +27,11 @@ async function runAIAnalysis() {
 
     try {
         const aiRes = await fetch(`http://localhost:5266/api/Radiologist/AnalyzeWithAi/${instanceId}`, { 
-            method: "POST" 
+            method: "POST",
+            headers: getAuthHeaders()
         });
+
+        if (await handleAuthError(aiRes)) return;
 
         if (!aiRes.ok) {
             const errorText = await aiRes.text();
@@ -72,16 +91,16 @@ async function submitReport(isFinal) {
             ShouldFinalize: isFinal            // Changed from isFinalized
     };
 
-    console.log(payload);
     if (isFinal && !confirm("Finalize Report? This action is permanent.")) return;
 
     try {
         const res = await fetch("http://localhost:5266/api/Radiologist/UpdateReport", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: getAuthHeaders(),
             body: JSON.stringify(payload)
         });
-        console.log(res);
+        
+        if (await handleAuthError(res)) return;
 
         if (res.ok) {
             alert(isFinal ? "Report Finalized!" : "Draft Saved.");
@@ -96,7 +115,12 @@ let fullReportData = null;
 
 async function fetchExistingReport() {
     try {
-        const res = await fetch(`http://localhost:5266/api/Radiologist/GetPrintingReport?instanceId=${instanceId}`);
+        const res = await fetch(`http://localhost:5266/api/Radiologist/GetPrintingReport?instanceId=${instanceId}`, {
+            headers: getAuthHeaders() // <--- Uses the token
+        });
+
+        if (await handleAuthError(res)) return; 
+
         if (!res.ok) return;
 
         fullReportData = await res.json(); // Store all 22 fields

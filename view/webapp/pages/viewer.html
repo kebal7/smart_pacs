@@ -234,6 +234,16 @@
     // --- INIT ---
     cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
     cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
+
+    cornerstoneWADOImageLoader.configure({
+        beforeSend: function(xhr) {
+            const token = localStorage.getItem('jwtToken');
+            if (token) {
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            }
+        }
+    });
+
     cornerstone.enable(element);
 
     function resizeOverlay() {
