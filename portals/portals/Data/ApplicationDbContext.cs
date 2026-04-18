@@ -11,6 +11,7 @@ public class ApplicationDbContext : IdentityDbContext
     {
     }
 
+    public DbSet<StaffProfile> StaffProfiles { get; set; }
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<TimelineEvent> TimelineEvents => Set<TimelineEvent>();
@@ -25,5 +26,9 @@ public class ApplicationDbContext : IdentityDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        
+        modelBuilder.Entity<StaffProfile>()
+            .HasIndex(p => p.UserId)
+            .IsUnique();
     }
 }

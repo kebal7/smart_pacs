@@ -6,6 +6,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using portals.Data;
+using portals.Models;
 using SignInResult = Microsoft.AspNetCore.Identity.SignInResult;
 
 
@@ -19,11 +21,14 @@ namespace portals.Controllers
         private readonly IConfiguration _config;
         private readonly SignInManager<IdentityUser> _signInManager;
 
-        public AuthController(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, IConfiguration config)
+        private readonly ApplicationDbContext _context;
+        
+        public AuthController(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, IConfiguration config, ApplicationDbContext context)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _config = config;
+            _context = context;
         }
 
         [HttpPost("register")]
@@ -45,8 +50,38 @@ namespace portals.Controllers
 
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
-
+            
             await _userManager.AddToRoleAsync(user, model.Role);
+            
+            var profile = new StaffProfile
+            {
+                UserId = user.Id, // Link to the ID we just created
+                FullName = model.FullName,
+                ContactNo = model.ContactNo,
+                Address = model.Address,
+                ProfessionalEmail = model.ProfessionalEmail, // Default to login email, can be different
+                LicenseNumber = model.LicenseNumber,
+                DepartmentOrModality = model.DepartmentOrModality,
+                CurrentPosition = model.CurrentPosition,
+                StaffType = model.Role, // Use the role chosen during registration
+                CareerStartDate = model.CareerStartDate,
+                HospitalJoinDate = model.HospitalJoinDate,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            try 
+            {
+                _context.StaffProfiles.Add(profile);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // If profile fails, we should technically delete the Identity user 
+                // to prevent "Ghost Users" without profiles.
+                await _userManager.DeleteAsync(user);
+                return StatusCode(500, "Profile creation failed. Registration rolled back.");
+            }
+            
             return CreatedAtAction(nameof(Register), new { message = "User registered successfully" });
         }
 
@@ -138,17 +173,41 @@ namespace portals.Controllers
     // --- DTOs ---
     public class RegisterDto
     {
+        // --- ACCOUNT INFO ---
         [Required]
         [EmailAddress]
         public string Email { get; set; } 
-        
+    
         [Required]
         [MinLength(6)]
         public string Password { get; set; } 
-        
+    
         [Required]
-        public string Role { get; set; }
+        public string Role { get; set; } // "Radiologist", "Radiographer", "Clinician"
+
+        //staff profile
+        // --- PERSONAL INFO ---
+        [Required]
+        public string FullName { get; set; }
+        public string ContactNo { get; set; }
+        public string Address { get; set; }
+        
+        [EmailAddress]
+        public string ProfessionalEmail { get; set; }
+
+        // --- PROFESSIONAL INFO ---
+        [Required]
+        public string LicenseNumber { get; set; } // NMC / NHPC Number
+        public string DepartmentOrModality { get; set; } // e.g. "MRI Dept" or "Orthopedics"
+        public string CurrentPosition { get; set; } // e.g. "Consultant"
+
+        // --- EXPERIENCE INFO ---
+        [Required]
+        public DateTime CareerStartDate { get; set; }
+        [Required]
+        public DateTime HospitalJoinDate { get; set; }
     }
+    
     public class LoginDto { public string Email { get; set; } public string Password { get; set; } }
     public class UpdatePasswordDto { public string CurrentPassword { get; set; } public string NewPassword { get; set; } }
     

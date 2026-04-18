@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using portals.Data;
 using portals.Models;
+using System.Security.Claims;
 
 namespace portals.Controllers;
 
@@ -153,6 +154,16 @@ namespace portals.Controllers;
     [HttpPost("UpdateReport")]
     public async Task<IActionResult> UpdateReport([FromBody] UpdateReportRequest model)
     {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
+        var profile = await _context.StaffProfiles
+            .FirstOrDefaultAsync(p => p.UserId == userId);
+        
+        // Create a professional signature string: "Dr. Name (NMC: 12345)"
+        string professionalSignature = profile != null 
+            ? $"{profile.FullName} (License: {profile.LicenseNumber})" 
+            : (User.Identity?.Name ?? "Unknown Radiologist");
+        
         // 1. Fetch the report
         var report = await _context.Reports.FirstOrDefaultAsync(r => r.InstanceNumber == model.InstanceId);
         if (report == null) return NotFound("Report not found.");
@@ -172,12 +183,12 @@ namespace portals.Controllers;
         {
             report.IsFinalized = true;
             report.FinalizedAt = DateTime.UtcNow;
-            report.FinalizedBy = "Dr. Senior User"; 
+            report.FinalizedBy = professionalSignature;
         }
         else 
         {
             report.IsFinalized = false; 
-            report.GeneratedBy = "Dr. Junior User";
+            report.GeneratedBy = professionalSignature;
             report.GeneratedAt = DateTime.UtcNow;
         }
 
