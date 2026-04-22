@@ -1,10 +1,14 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using portals.Data;
 using portals.Models;
+using System.Security.Claims;
 
 namespace portals.Controllers;
 
+[Authorize(Roles = "Clinician", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 [ApiController]
 [Route("api/[controller]")]
 public class CaseController : ControllerBase
@@ -17,10 +21,8 @@ public class CaseController : ControllerBase
     {
         if (string.IsNullOrEmpty(model.PatientIdentifier))
             return BadRequest("Patient Identifier is required.");
-
-        // HANDLE LOGIC HERE
-        // For now, we force Dr. Kebal. Later: model.LeadClinician = User.Identity.Name;
-        model.LeadClinician = "Dr. Kebal";
+        
+        model.LeadClinician = await GetCurrentProfessionalName();
     
         // Ensure audit fields are set
         model.CreatedAt = DateTime.UtcNow;
@@ -199,7 +201,7 @@ public class CaseController : ControllerBase
         var note = new ClinicalNote {
             CaseId = request.CaseId,
             NoteText = request.NoteText,
-            AuthoredBy = "Dr. Kebal" // In a real app, get this from user session
+            AuthoredBy = await GetCurrentProfessionalName(),
         };
     
         _context.ClinicalNote.Add(note);
@@ -223,5 +225,18 @@ public class CaseController : ControllerBase
             .ToListAsync();
 
         return Ok(new { imaging = radiology, lab = labs });
+    }
+    
+    private async Task<string> GetCurrentProfessionalName()
+    {
+        // Extract the GUID from the JWT Token
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    
+        // Look up the Staff Profile
+        var profile = await _context.StaffProfiles
+            .FirstOrDefaultAsync(p => p.UserId == userId);
+
+        // Return FullName, or fallback to Email, or "Unknown"
+        return profile?.FullName ?? User.Identity?.Name ?? "Unknown Clinician";
     }
 }

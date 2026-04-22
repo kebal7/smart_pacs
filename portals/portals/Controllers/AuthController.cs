@@ -37,7 +37,7 @@ namespace portals.Controllers
             if (string.Equals(model.Role, "Admin", StringComparison.OrdinalIgnoreCase))
                 return BadRequest("Cannot register as Admin via API.");
 
-            var allowedRoles = new[] { "Radiographer","Radiologist", "Clinician" };
+            var allowedRoles = new[] { "Radiographer","Radiologist", "Clinician", "RegistrationDesk" };
             if (string.IsNullOrEmpty(model.Role) || !allowedRoles.Contains(model.Role))
                 return BadRequest("Invalid role specified.");
             

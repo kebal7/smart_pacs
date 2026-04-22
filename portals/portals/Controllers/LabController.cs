@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using portals.Data;
 using portals.Models;
@@ -5,6 +7,7 @@ using portals.Models;
 
 namespace portals.Controllers;
 
+[Authorize(Roles = "Clinician", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 [ApiController]
 [Route("api/[controller]")]
 

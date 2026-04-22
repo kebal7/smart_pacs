@@ -489,6 +489,7 @@
             emergencyContact: document.getElementById("emergency").value
         };
 
+        console.log(getAuthHeaders);
         const res = await fetch(API, {
             method: "POST",
             headers: getAuthHeaders(),
@@ -583,6 +584,8 @@
         const contactVal = row.querySelector(".contact input")?.value || "";
         const emergencyVal = row.querySelector(".emergency input")?.value || "";
 
+        const sexVal = row.querySelector(".sex select")?.value || "";
+
         // --- FRONTEND VALIDATION ---
         if (!dobVal) return;
 
@@ -607,7 +610,8 @@
             dateOfBirth: new Date(row.querySelector(".dob input")?.value).toISOString(),
             address: row.querySelector(".address input")?.value || "",
             contactNo: row.querySelector(".contact input")?.value || "",
-            emergencyContact: row.querySelector(".emergency input")?.value || ""
+            emergencyContact: row.querySelector(".emergency input")?.value || "",
+            sex: sexVal
         };
         
         const res = await fetch(`${API}/${id}`, {

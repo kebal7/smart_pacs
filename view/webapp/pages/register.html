@@ -4,164 +4,829 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smart PACS | Register</title>
-
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: "Segoe UI", Arial, sans-serif;
+:root {
+  --navy: #0f2240;
+  --navy-mid: #1a3560;
+  --navy-light: #264785;
+  --teal: #0ea5c8;
+  --teal-glow: rgba(14,165,200,0.18);
+  --gold: #c9a84c;
+  --white: #ffffff;
+  --off-white: #f0f4f9;
+  --muted: #8ea4bf;
+  --border: rgba(255,255,255,0.10);
+  --error: #f26c6c;
+  --success: #34d398;
+  --step-done: var(--teal);
+  --radius: 10px;
+  --transition: 0.28s cubic-bezier(.4,0,.2,1);
 }
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
 body {
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: #f4f7fa;
+  min-height: 100vh;
+  background: var(--navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Sans', sans-serif;
+  padding: 24px 16px;
+  overflow-x: hidden;
 }
 
-/* Card */
+/* ── Background texture ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(14,165,200,0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 90%, rgba(38,71,133,0.30) 0%, transparent 60%),
+    repeating-linear-gradient(
+      135deg,
+      transparent,
+      transparent 40px,
+      rgba(255,255,255,0.015) 40px,
+      rgba(255,255,255,0.015) 41px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Outer wrapper ── */
+.wrapper {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 620px;
+  animation: fadeUp .55s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(28px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* ── Header ── */
+.header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.logo-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.logo-icon {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--teal), var(--navy-light));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 20px var(--teal-glow);
+}
+
+.logo-icon svg { width: 22px; height: 22px; }
+
+.logo-text {
+  font-family: 'DM Serif Display', serif;
+  font-size: 22px;
+  color: var(--white);
+  letter-spacing: 0.5px;
+}
+
+.logo-text span { color: var(--teal); }
+
+.header h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 28px;
+  color: var(--white);
+  font-weight: 400;
+  margin-bottom: 6px;
+}
+
+.header p {
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 300;
+}
+
+/* ── Card ── */
 .card {
-    background: #ffffff;
-    padding: 40px;
-    width: 380px;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    text-align: center;
+  background: rgba(26, 53, 96, 0.55);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 36px 40px;
+  box-shadow:
+    0 24px 60px rgba(0,0,0,0.35),
+    0 1px 0 rgba(255,255,255,0.06) inset;
 }
 
-h2 {
-    margin-bottom: 8px;
-    color: #1e3a5f;
+/* ── Progress stepper ── */
+.stepper {
+  display: flex;
+  align-items: center;
+  margin-bottom: 36px;
 }
 
-.subtitle {
-    font-size: 14px;
-    color: #6b7280;
-    margin-bottom: 30px;
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
 }
 
-/* Input Group */
-.input-group {
-    position: relative;
-    margin-bottom: 20px;
-    text-align: left;
+.step-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: rgba(255,255,255,0.12);
+  transition: background var(--transition);
+  z-index: 0;
 }
 
-.input-group label {
-    display: block;
-    margin-bottom: 6px;
-    font-size: 13px;
-    color: #374151;
+.step-item.done:not(:last-child)::after {
+  background: var(--teal);
 }
 
-.input-group input,
-.input-group select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 5px;
-    font-size: 14px;
-    outline: none;
-    background-color: #fff;
+.step-bubble {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.18);
+  background: var(--navy);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600;
+  color: var(--muted);
+  transition: all var(--transition);
+  position: relative; z-index: 1;
 }
 
-.input-group input:focus,
-.input-group select:focus {
-    border-color: #2563eb;
+.step-item.active .step-bubble {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: var(--navy);
+  box-shadow: 0 0 16px var(--teal-glow);
 }
 
-/* Button */
-button {
-    width: 100%;
-    padding: 11px;
-    border: none;
-    border-radius: 5px;
-    background-color: #1e3a5f;
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
+.step-item.done .step-bubble {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: var(--navy);
 }
 
-button:hover {
-    background-color: #16324f;
+.step-label {
+  margin-top: 7px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: center;
+  letter-spacing: 0.3px;
+  transition: color var(--transition);
 }
 
-/* Link */
-.link {
-    margin-top: 18px;
-    font-size: 13px;
-    color: #6b7280;
+.step-item.active .step-label,
+.step-item.done .step-label { color: var(--teal); }
+
+/* ── Panels ── */
+.panel { display: none; }
+.panel.active {
+  display: block;
+  animation: panelIn .3s ease both;
 }
 
-.link a {
-    color: #2563eb;
-    text-decoration: none;
-    font-weight: 500;
+@keyframes panelIn {
+  from { opacity:0; transform:translateX(16px); }
+  to   { opacity:1; transform:translateX(0); }
 }
 
-.link a:hover {
-    text-decoration: underline;
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--teal);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 22px;
+}
+
+/* ── Grid ── */
+.grid { display: grid; gap: 18px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-1 { grid-template-columns: 1fr; }
+
+/* ── Field ── */
+.field { display: flex; flex-direction: column; gap: 7px; }
+
+.field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.field input,
+.field select {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--white);
+  outline: none;
+  transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+  width: 100%;
+}
+
+.field select option { background: var(--navy-mid); color: var(--white); }
+
+.field input::placeholder { color: rgba(255,255,255,0.25); }
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--teal);
+  background: rgba(14,165,200,0.07);
+  box-shadow: 0 0 0 3px rgba(14,165,200,0.12);
+}
+
+.field input.error,
+.field select.error {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px rgba(242,108,108,0.12);
+}
+
+.field .err-msg {
+  font-size: 11.5px;
+  color: var(--error);
+  display: none;
+}
+
+.field.has-error .err-msg { display: block; }
+
+/* password toggle */
+.pwd-wrap { position: relative; }
+.pwd-wrap input { padding-right: 44px; }
+.pwd-toggle {
+  position: absolute; right: 13px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); padding: 4px;
+  display: flex; align-items: center;
+  transition: color var(--transition);
+}
+.pwd-toggle:hover { color: var(--teal); }
+.pwd-toggle svg { width: 17px; height: 17px; }
+
+/* strength bar */
+.strength-bar {
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.strength-fill {
+  height: 100%;
+  border-radius: 4px;
+  width: 0%;
+  transition: width .4s ease, background .4s ease;
+}
+
+/* ── Navigation buttons ── */
+.nav-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.btn {
+  flex: 1;
+  padding: 13px 20px;
+  border-radius: var(--radius);
+  border: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: 0.3px;
+}
+
+.btn-ghost {
+  background: rgba(255,255,255,0.07);
+  color: var(--muted);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.btn-ghost:hover {
+  background: rgba(255,255,255,0.12);
+  color: var(--white);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--teal), #0882a3);
+  color: var(--white);
+  box-shadow: 0 6px 20px rgba(14,165,200,0.25);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(14,165,200,0.35);
+}
+
+.btn-primary:active { transform: translateY(0); }
+
+.btn-submit {
+  background: linear-gradient(135deg, var(--gold), #b8893a);
+  color: var(--navy);
+  box-shadow: 0 6px 20px rgba(201,168,76,0.25);
+}
+
+.btn-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(201,168,76,0.35);
+}
+
+/* ── Login link ── */
+.login-link {
+  text-align: center;
+  margin-top: 22px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.login-link a {
+  color: var(--teal);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.login-link a:hover { text-decoration: underline; }
+
+/* ── Success panel ── */
+.success-panel {
+  display: none;
+  text-align: center;
+  padding: 20px 0;
+  animation: fadeUp .5s ease both;
+}
+
+.success-panel.show { display: block; }
+
+.success-circle {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: rgba(52,211,152,0.12);
+  border: 2px solid var(--success);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 22px;
+  box-shadow: 0 0 30px rgba(52,211,152,0.15);
+}
+
+.success-circle svg { width: 34px; height: 34px; }
+
+.success-panel h2 {
+  font-family: 'DM Serif Display', serif;
+  color: var(--white);
+  font-size: 24px;
+  margin-bottom: 10px;
+  font-weight: 400;
+}
+
+.success-panel p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  background: rgba(242,108,108,0.95);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  z-index: 999;
+  display: none;
+  white-space: nowrap;
+  animation: toastIn .3s ease;
+}
+
+@keyframes toastIn {
+  from { opacity:0; transform:translateX(-50%) translateY(14px); }
+  to   { opacity:1; transform:translateX(-50%) translateY(0); }
+}
+
+/* ── Spinner ── */
+.spinner {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Responsive ── */
+@media (max-width: 520px) {
+  .card { padding: 28px 20px; }
+  .grid-2 { grid-template-columns: 1fr; }
+  .header h1 { font-size: 22px; }
 }
 </style>
 </head>
-
 <body>
 
-<div class="card">
-    <h2>Register Account</h2>
-    <p class="subtitle">Smart PACS System Access</p>
+<div class="wrapper">
+  <div class="header">
+    <div class="logo-mark">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M8 12h8M12 8v8"/>
+          <circle cx="12" cy="12" r="3" fill="white" stroke="none" opacity=".4"/>
+        </svg>
+      </div>
+      <span class="logo-text">Smart<span>PACS</span></span>
+    </div>
+    <h1>Create Your Account</h1>
+    <p>Complete all steps to register for system access</p>
+  </div>
 
-    <form id="registerForm">
-        <div class="input-group">
-            <label>Email</label>
-            <input type="email" id="regEmail" required>
+  <div class="card" id="mainCard">
+
+    <!-- Stepper -->
+    <div class="stepper" id="stepper">
+      <div class="step-item active" data-step="1">
+        <div class="step-bubble">1</div>
+        <div class="step-label">Credentials</div>
+      </div>
+      <div class="step-item" data-step="2">
+        <div class="step-bubble">2</div>
+        <div class="step-label">Personal</div>
+      </div>
+      <div class="step-item" data-step="3">
+        <div class="step-bubble">3</div>
+        <div class="step-label">Professional</div>
+      </div>
+    </div>
+
+    <!-- PANEL 1: Credentials -->
+    <div class="panel active" id="panel-1">
+      <div class="panel-title">Step 1 — Login Credentials</div>
+      <div class="grid grid-1">
+
+        <div class="field" id="f-email">
+          <label>Email Address</label>
+          <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
+          <span class="err-msg">Please enter a valid email address.</span>
         </div>
 
-        <div class="input-group">
-            <label>Password</label>
-            <input type="password" id="regPassword" required>
+        <div class="field" id="f-role">
+          <label>Role</label>
+          <select id="regRole">
+            <option value="">Select your role</option>
+            <option value="Radiographer">Radiographer</option>
+            <option value="Radiologist">Radiologist</option>
+            <option value="Clinician">Clinician</option>
+          </select>
+          <span class="err-msg">Please select a role.</span>
         </div>
 
-        <div class="input-group">
-            <label>Select Role</label>
-            <select id="regRole" required>
-                <option value="">Choose Role</option>
-                <option value="Radiographer">Radiographer</option>
-                <option value="Radiologist">Radiologist</option>
-                <option value="Clinician">Clinician</option>
-            </select>
+        <div class="field" id="f-pass">
+          <label>Password</label>
+          <div class="pwd-wrap">
+            <input type="password" id="regPassword" placeholder="Min. 8 characters" autocomplete="new-password">
+            <button class="pwd-toggle" type="button" onclick="togglePwd('regPassword',this)" aria-label="Toggle password visibility">
+              <svg id="eyeIcon1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+          <span class="err-msg">Password must be at least 8 characters with uppercase, number & symbol.</span>
         </div>
 
-        <button type="submit">Register</button>
-    </form>
+        <div class="field" id="f-confirm">
+          <label>Confirm Password</label>
+          <div class="pwd-wrap">
+            <input type="password" id="regConfirm" placeholder="Re-enter password">
+            <button class="pwd-toggle" type="button" onclick="togglePwd('regConfirm',this)" aria-label="Toggle confirm password visibility">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <span class="err-msg">Passwords do not match.</span>
+        </div>
 
-    <p class="link">
-        Already have an account?
-        <a href="login.html">Login</a>
+      </div>
+      <div class="nav-row">
+        <button class="btn btn-primary" onclick="goStep(2)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- PANEL 2: Personal Info -->
+    <div class="panel" id="panel-2">
+      <div class="panel-title">Step 2 — Personal Information</div>
+      <div class="grid grid-2">
+
+        <div class="field" id="f-fullName" style="grid-column:1/-1">
+          <label>Full Name</label>
+          <input type="text" id="regFullName" placeholder="Dr. First Last">
+          <span class="err-msg">Full name is required.</span>
+        </div>
+
+        <div class="field" id="f-contact">
+          <label>Contact Number</label>
+          <input type="tel" id="regContact" placeholder="+977 98XXXXXXXX">
+          <span class="err-msg">Enter a valid contact number.</span>
+        </div>
+
+        <div class="field" id="f-address">
+          <label>Address</label>
+          <input type="text" id="regAddress" placeholder="City, Country">
+          <span class="err-msg">Address is required.</span>
+        </div>
+
+      </div>
+      <div class="nav-row">
+        <button class="btn btn-ghost" onclick="goStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(3)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- PANEL 3: Professional Info -->
+    <div class="panel" id="panel-3">
+      <div class="panel-title">Step 3 — Professional Details</div>
+      <div class="grid grid-2">
+
+        <div class="field" id="f-profEmail" style="grid-column:1/-1">
+          <label>Professional Email</label>
+          <input type="email" id="regProfEmail" placeholder="you@hospital.com">
+          <span class="err-msg">Please enter a valid professional email.</span>
+        </div>
+
+        <div class="field" id="f-license">
+          <label>License Number</label>
+          <input type="text" id="regLicense" placeholder="NMC-XXXXX">
+          <span class="err-msg">License number is required.</span>
+        </div>
+
+        <div class="field" id="f-dept">
+          <label>Department / Modality</label>
+          <input type="text" id="regDept" placeholder="e.g. Radiology">
+          <span class="err-msg">Department is required.</span>
+        </div>
+
+        <div class="field" id="f-position" style="grid-column:1/-1">
+          <label>Current Position</label>
+          <input type="text" id="regPosition" placeholder="e.g. Consultant Radiologist">
+          <span class="err-msg">Current position is required.</span>
+        </div>
+
+        <div class="field" id="f-careerStart">
+          <label>Career Start Date</label>
+          <input type="date" id="regCareerStart">
+          <span class="err-msg">Career start date is required.</span>
+        </div>
+
+        <div class="field" id="f-hospitalJoin">
+          <label>Hospital Join Date</label>
+          <input type="date" id="regHospitalJoin">
+          <span class="err-msg">Hospital join date is required.</span>
+        </div>
+
+      </div>
+      <div class="nav-row">
+        <button class="btn btn-ghost" onclick="goStep(2)">← Back</button>
+        <button class="btn btn-primary btn-submit" id="submitBtn" onclick="submitForm()">Register Account</button>
+      </div>
+    </div>
+
+    <!-- Login link -->
+    <p class="login-link" id="loginLink">
+      Already have an account? <a href="login.html">Sign in</a>
     </p>
+  </div>
+
+  <!-- Success -->
+  <div class="card success-panel" id="successPanel">
+    <div class="success-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#34d398" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 6L9 17l-5-5"/>
+      </svg>
+    </div>
+    <h2>Registration Successful</h2>
+    <p>Your account request has been submitted.<br>You will be redirected to login shortly.</p>
+  </div>
 </div>
 
-<script type="module">
-import { registerUser } from '../js/auth.js';
+<!-- Toast -->
+<div class="toast" id="toast"></div>
 
-document.getElementById('registerForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('regEmail').value;
-    const password = document.getElementById('regPassword').value;
-    const role = document.getElementById('regRole').value;
+<script>
+const API_BASE = 'http://localhost:5266';
 
-    const result = await registerUser(email, password, role);
+/* ───── Step navigation ───── */
+let currentStep = 1;
 
-    if(result.message){
-        alert(result.message);
-        window.location.href = "./login.html";
+function goStep(target) {
+  if (target > currentStep && !validateStep(currentStep)) return;
+  currentStep = target;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + target).classList.add('active');
+
+  document.querySelectorAll('.step-item').forEach((item, i) => {
+    const s = i + 1;
+    item.classList.toggle('active', s === target);
+    item.classList.toggle('done',   s < target);
+  });
+}
+
+window.goStep = goStep;
+
+/* ───── Validation helpers ───── */
+function setError(fieldId, hasErr) {
+  const wrap = document.getElementById('f-' + fieldId);
+  if (!wrap) return;
+  wrap.classList.toggle('has-error', hasErr);
+  const inp = wrap.querySelector('input, select');
+  if (inp) inp.classList.toggle('error', hasErr);
+}
+
+function val(id) { return document.getElementById(id)?.value.trim() || ''; }
+
+function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+function isStrongPwd(v) { return v.length >= 8 && /[A-Z]/.test(v) && /\d/.test(v) && /[^A-Za-z0-9]/.test(v); }
+
+function validateStep(step) {
+  let ok = true;
+
+  if (step === 1) {
+    const email = val('regEmail'), role = val('regRole'),
+          pass  = val('regPassword'), confirm = val('regConfirm');
+
+    const eEmail   = !isEmail(email);
+    const eRole    = !role;
+    const ePass    = !isStrongPwd(pass);
+    const eConfirm = pass !== confirm;
+
+    setError('email',   eEmail);
+    setError('role',    eRole);
+    setError('pass',    ePass);
+    setError('confirm', eConfirm);
+
+    ok = !(eEmail || eRole || ePass || eConfirm);
+  }
+
+  if (step === 2) {
+    const eFullName = !val('regFullName');
+    const eContact  = !val('regContact');
+    const eAddress  = !val('regAddress');
+
+    setError('fullName', eFullName);
+    setError('contact',  eContact);
+    setError('address',  eAddress);
+
+    ok = !(eFullName || eContact || eAddress);
+  }
+
+  if (step === 3) {
+    const eProfEmail    = !isEmail(val('regProfEmail'));
+    const eLicense      = !val('regLicense');
+    const eDept         = !val('regDept');
+    const ePosition     = !val('regPosition');
+    const eCareerStart  = !val('regCareerStart');
+    const eHospitalJoin = !val('regHospitalJoin');
+
+    setError('profEmail',    eProfEmail);
+    setError('license',      eLicense);
+    setError('dept',         eDept);
+    setError('position',     ePosition);
+    setError('careerStart',  eCareerStart);
+    setError('hospitalJoin', eHospitalJoin);
+
+    ok = !(eProfEmail || eLicense || eDept || ePosition || eCareerStart || eHospitalJoin);
+  }
+
+  if (!ok) showToast('Please correct the highlighted fields.');
+  return ok;
+}
+
+/* ───── Submit ───── */
+async function submitForm() {
+  if (!validateStep(3)) return;
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Registering…';
+
+  const payload = {
+    email:                val('regEmail'),
+    password:             val('regPassword'),
+    role:                 val('regRole'),
+    fullName:             val('regFullName'),
+    contactNo:            val('regContact'),
+    address:              val('regAddress'),
+    professionalEmail:    val('regProfEmail'),
+    licenseNumber:        val('regLicense'),
+    departmentOrModality: val('regDept'),
+    currentPosition:      val('regPosition'),
+    careerStartDate:      new Date(val('regCareerStart')).toISOString(),
+    hospitalJoinDate:     new Date(val('regHospitalJoin')).toISOString(),
+  };
+
+  try {
+    const response = await fetch(`${API_BASE}/api/Auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'accept': '*/*'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (response.ok) {
+      // 200–299: registration succeeded
+      document.getElementById('mainCard').style.display = 'none';
+      document.querySelector('.header').style.display   = 'none';
+      document.getElementById('successPanel').classList.add('show');
+      setTimeout(() => { window.location.href = './login.html'; }, 2800);
     } else {
-        alert(JSON.stringify(result));
+      // Server returned an error body — show its message if available
+      const errMsg = data?.message || data?.title || `Registration failed (${response.status}).`;
+      showToast(errMsg);
+      btn.disabled = false;
+      btn.innerHTML = 'Register Account';
     }
+  } catch (err) {
+    // Network-level failure (server down, CORS, etc.)
+    showToast('Network error — could not reach the server.');
+    btn.disabled = false;
+    btn.innerHTML = 'Register Account';
+  }
+}
+
+window.submitForm = submitForm;
+
+/* ───── Password strength ───── */
+document.getElementById('regPassword')?.addEventListener('input', function () {
+  const v = this.value;
+  let score = 0;
+  if (v.length >= 8)      score++;
+  if (/[A-Z]/.test(v))    score++;
+  if (/\d/.test(v))       score++;
+  if (/[^A-Za-z0-9]/.test(v)) score++;
+
+  const fill = document.getElementById('strengthFill');
+  const colours = ['', '#f26c6c', '#f59e0b', '#34d398', '#0ea5c8'];
+  fill.style.width     = (score * 25) + '%';
+  fill.style.background = colours[score] || '';
+});
+
+/* ───── Toggle password visibility ───── */
+function togglePwd(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.innerHTML = show
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
+}
+
+window.togglePwd = togglePwd;
+
+/* ───── Toast ───── */
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.style.display = 'none'; }, 3500);
+}
+
+/* ───── Clear error on input ───── */
+document.querySelectorAll('input, select').forEach(el => {
+  el.addEventListener('input', () => {
+    el.classList.remove('error');
+    el.closest('.field')?.classList.remove('has-error');
+  });
 });
 </script>
-
 </body>
 </html>

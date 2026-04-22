@@ -16,6 +16,7 @@
             --text-main: #1e293b;
             --text-muted: #64748b;
             --border: #e2e8f0;
+            --danger: #ef4444;
         }
 
         body {
@@ -85,6 +86,7 @@
             border: 1px solid var(--border);
             font-size: 0.9rem;
             outline: none;
+            box-sizing: border-box;
         }
 
         .sidebar-header input:focus {
@@ -210,12 +212,51 @@
         .view-link:hover {
             text-decoration: underline;
         }
+
+        /* --- Auth Error Modal (same as patients.html) --- */
+        #authErrorModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .modal-content h2 { margin: 0 0 10px 0; font-size: 1.5rem; color: var(--text-main); }
+        .modal-content p { color: var(--text-muted); margin-bottom: 30px; line-height: 1.6; font-size: 0.95rem; }
+        .modal-icon { font-size: 3rem; margin-bottom: 20px; }
+
+        .btn-relogin {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+        }
     </style>
 </head>
 
 <body>
 
-<div class="dashboard-container">
+<div class="dashboard-container" id="mainContent">
     <h1>Patient Timeline</h1>
 
     <div class="portal-container">
@@ -238,6 +279,7 @@
     </div>
 </div>
 
+<!-- Lab Report Modal -->
 <div id="labReportModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1000; overflow-y:auto; backdrop-filter: blur(4px);">
     <div style="background:white; max-width:800px; margin:50px auto; padding:40px; border-radius:12px; position:relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
         <button onclick="closeLabModal()" style="position:absolute; right:20px; top:20px; border:none; background:#f1f5f9; width:32px; height:32px; border-radius:50%; cursor:pointer; font-weight:bold;">&times;</button>
@@ -286,169 +328,231 @@
     </div>
 </div>
 
+<!-- Auth Error Modal (mirrors patients.html) -->
+<div id="authErrorModal">
+    <div class="modal-content">
+        <div class="modal-icon">🛡️</div>
+        <h2 id="errorTitle">Session Security Alert</h2>
+        <p id="errorDescription">Your security token is invalid or has expired. Please sign in again to access patient records.</p>
+        <button class="btn-relogin" onclick="logout()">Return to Login</button>
+    </div>
+</div>
+
 <script>
-let patients = [];
+    // ─── AUTH HELPERS (same pattern as patients.html) ───────────────────────────
 
-async function initPortal() {
-    try {
-        const res = await fetch('http://localhost:5266/api/Clinician/Patients'); 
-        const data = await res.json();
-        // Standardize keys in case backend uses patientName or name
-        patients = data.map(p => ({
-            patientIdentifier: p.patientIdentifier,
-            patientName: p.patientName || p.name
-        }));
-        renderPatientList();
-    } catch (error) {
-        console.error("Failed to load patient list:", error);
+    function logout() {
+        localStorage.removeItem('jwtToken');
+        window.location.href = "login.html";
     }
-}
 
-function renderPatientList() {
-    const container = document.getElementById('patientListContainer');
-    container.innerHTML = patients.map(p => `
-        <div class="patient-list-item" onclick="selectPatient('${p.patientIdentifier}')">
-            <div style="font-weight:600;">${p.patientName}</div>
-            <div style="font-size:0.75rem; color:var(--text-muted);">${p.patientIdentifier}</div>
-        </div>
-    `).join('');
-}
+    // Guard: redirect immediately if no token
+    if (!localStorage.getItem('jwtToken')) { logout(); }
 
-async function selectPatient(patientId) {
-    try {
-        const [demoRes, historyRes] = await Promise.all([
-            fetch(`http://localhost:5266/api/Clinician/PatientDemographics/${patientId}`),
-            fetch(`http://localhost:5266/api/Clinician/PatientHistory/${patientId}`)
-        ]);
+    function getAuthHeaders() {
+        return {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem('jwtToken')}`
+        };
+    }
 
-        if (!demoRes.ok || !historyRes.ok) throw new Error("Data retrieval failed");
-        
-        const demo = await demoRes.json();
-        const history = await historyRes.json();
+    function showAuthError(title, description) {
+        document.getElementById('errorTitle').innerText = title;
+        document.getElementById('errorDescription').innerText = description;
+        document.getElementById('authErrorModal').style.display = 'flex';
+        document.getElementById('mainContent').style.filter = 'blur(8px)';
+        document.querySelectorAll('input, button:not(.btn-relogin)').forEach(el => el.disabled = true);
+    }
 
-        // Highlight active patient in sidebar
-        document.querySelectorAll('.patient-list-item').forEach(el => {
-            el.classList.toggle('active', el.innerText.includes(patientId));
-        });
+    async function handleAuthError(res) {
+        if (res.status === 401) {
+            showAuthError("Session Expired", "Your authentication token is invalid or has been tampered with. To protect health data, you must sign in again.");
+            return true;
+        }
+        if (res.status === 403) {
+            showAuthError("Access Denied", "Your account does not have permission to view patient records.");
+            return true;
+        }
+        return false;
+    }
 
-        const pane = document.getElementById('detailsPane');
-        pane.innerHTML = `
-            <div class="card">
-                <div style="display:flex; justify-content:space-between;">
-                    <div>
-                        <h2 style="margin:0;">${demo.name}</h2>
-                        <p style="color:var(--accent); font-weight:600; margin:4px 0;">${demo.patientIdentifier}</p>
-                    </div>
-                    <span class="status-badge status-finalized">Active Case</span>
-                </div>
+    // ─── APP LOGIC ───────────────────────────────────────────────────────────────
 
-                <div class="demo-grid">
-                    <div class="demo-item">
-                        <label>Date of Birth</label>
-                        <span>${new Date(demo.dateOfBirth).toLocaleDateString('en-GB')} (${demo.age} Yrs)</span>
-                    </div>
-                    <div class="demo-item">
-                        <label>Contact</label>
-                        <span>${demo.contactNo || 'Not Provided'}</span>
-                    </div>
-                    <div class="demo-item">
-                        <label>Emergency Contact</label>
-                        <span>${demo.emergencyContact || 'Not Provided'}</span>
-                    </div>
-                    <div class="demo-item" style="grid-column: span 2;">
-                        <label>Residential Address</label>
-                        <span>${demo.address || 'N/A'}</span>
-                    </div>
-                </div>
+    let patients = [];
+
+    async function initPortal() {
+        try {
+            const res = await fetch('http://localhost:5266/api/Clinician/Patients', {
+                headers: getAuthHeaders()
+            });
+
+            if (await handleAuthError(res)) return;
+
+            const data = await res.json();
+            patients = data.map(p => ({
+                patientIdentifier: p.patientIdentifier,
+                patientName: p.patientName || p.name
+            }));
+            renderPatientList();
+        } catch (error) {
+            console.error("Failed to load patient list:", error);
+        }
+    }
+
+    function renderPatientList() {
+        const container = document.getElementById('patientListContainer');
+        container.innerHTML = patients.map(p => `
+            <div class="patient-list-item" onclick="selectPatient('${p.patientIdentifier}')">
+                <div style="font-weight:600;">${p.patientName}</div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">${p.patientIdentifier}</div>
             </div>
+        `).join('');
+    }
 
-            <h3 style="margin:20px 0; display:flex; align-items:center; gap:8px;">
-                Clinical Timeline <span style="font-size:0.9rem; background:#e2e8f0; padding:2px 8px; border-radius:10px;">${history.length} Events</span>
-            </h3>
+    async function selectPatient(patientId) {
+        try {
+            const [demoRes, historyRes] = await Promise.all([
+                fetch(`http://localhost:5266/api/Clinician/PatientDemographics/${patientId}`, {
+                    headers: getAuthHeaders()
+                }),
+                fetch(`http://localhost:5266/api/Clinician/PatientHistory/${patientId}`, {
+                    headers: getAuthHeaders()
+                })
+            ]);
 
-            <div class="timeline-container">
-            ${history.map(item => {
-            
-            const isRadiology = item.sourceTable === 'reports';
-            const isLab = item.sourceTable === 'lab_reports';
-            const hasViewer = isRadiology && item.instanceId;
+            // Check auth on both responses
+            if (await handleAuthError(demoRes)) return;
+            if (await handleAuthError(historyRes)) return;
 
-            return `
-            <div class="timeline-item">
-                <div class="timeline-dot" style="background: ${isRadiology ? 'var(--accent)' : '#10b981'}"></div>
-                <div class="timeline-card">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            if (!demoRes.ok || !historyRes.ok) throw new Error("Data retrieval failed");
+
+            const demo = await demoRes.json();
+            const history = await historyRes.json();
+
+            // Highlight active patient in sidebar
+            document.querySelectorAll('.patient-list-item').forEach(el => {
+                el.classList.toggle('active', el.innerText.includes(patientId));
+            });
+
+            const pane = document.getElementById('detailsPane');
+            pane.innerHTML = `
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between;">
                         <div>
-                            <div class="timeline-date">
-                                ${isRadiology ? '🩻 RADIOLOGY' : '🧪 LABORATORY'} • 
-                                ${new Date(item.eventDate).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
-                            </div>
-                            <div style="font-weight:600; color:var(--primary); font-size:1rem;">
-                                ${isLab ? 'Lab: ' + (item.description || 'Test Result') : item.eventType + ' (' + item.modality + ')'}
-                            </div>
+                            <h2 style="margin:0;">${demo.name}</h2>
+                            <p style="color:var(--accent); font-weight:600; margin:4px 0;">${demo.patientIdentifier}</p>
                         </div>
-                        ${hasViewer ? `<a href="viewer.html?instanceId=${item.instanceId}" target="_blank" class="view-link">View Image ↗</a>` : ''}
-                        ${isLab ? `<button onclick="viewLabDetails(${item.sourceId})" class="view-link" style="background:#f0fdf4; padding:5px 12px; border-radius:6px; border:1px solid #dcfce7; cursor:pointer; color:#16a34a;">View Report ↗</button>` : ''}
+                        <span class="status-badge status-finalized">Active Case</span>
                     </div>
 
-                    <div style="margin-top:12px; padding:10px; background:#f8fafc; border-radius:8px; border-left:4px solid ${isRadiology ? '#cbd5e1' : '#bbf7d0'};">
-                        <div style="font-size:0.65rem; text-transform:uppercase; color:var(--text-muted); font-weight:700; margin-bottom:4px;">
-                            ${isRadiology ? 'Clinical Impression' : 'Quick Summary'}
+                    <div class="demo-grid">
+                        <div class="demo-item">
+                            <label>Date of Birth</label>
+                            <span>${new Date(demo.dateOfBirth).toLocaleDateString('en-GB')} (${demo.age} Yrs)</span>
                         </div>
-                        <div style="line-height:1.4; color:var(--text-main);">
-                            ${item.summary || item.description || 'No data recorded.'}
+                        <div class="demo-item">
+                            <label>Contact</label>
+                            <span>${demo.contactNo || 'Not Provided'}</span>
+                        </div>
+                        <div class="demo-item">
+                            <label>Emergency Contact</label>
+                            <span>${demo.emergencyContact || 'Not Provided'}</span>
+                        </div>
+                        <div class="demo-item" style="grid-column: span 2;">
+                            <label>Residential Address</label>
+                            <span>${demo.address || 'N/A'}</span>
                         </div>
                     </div>
                 </div>
-            </div>`;
-                    
+
+                <h3 style="margin:20px 0; display:flex; align-items:center; gap:8px;">
+                    Clinical Timeline <span style="font-size:0.9rem; background:#e2e8f0; padding:2px 8px; border-radius:10px;">${history.length} Events</span>
+                </h3>
+
+                <div class="timeline-container">
+                ${history.map(item => {
+                    const isRadiology = item.sourceTable === 'reports';
+                    const isLab = item.sourceTable === 'lab_reports';
+                    const hasViewer = isRadiology && item.instanceId;
+
+                    return `
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: ${isRadiology ? 'var(--accent)' : '#10b981'}"></div>
+                        <div class="timeline-card">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                                <div>
+                                    <div class="timeline-date">
+                                        ${isRadiology ? '🩻 RADIOLOGY' : '🧪 LABORATORY'} • 
+                                        ${new Date(item.eventDate).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                                    </div>
+                                    <div style="font-weight:600; color:var(--primary); font-size:1rem;">
+                                        ${isLab ? 'Lab: ' + (item.description || 'Test Result') : item.eventType + ' (' + item.modality + ')'}
+                                    </div>
+                                </div>
+                                ${hasViewer ? `<a href="viewer.html?instanceId=${item.instanceId}" target="_blank" class="view-link">View Image ↗</a>` : ''}
+                                ${isLab ? `<button onclick="viewLabDetails(${item.sourceId})" class="view-link" style="background:#f0fdf4; padding:5px 12px; border-radius:6px; border:1px solid #dcfce7; cursor:pointer; color:#16a34a;">View Report ↗</button>` : ''}
+                            </div>
+
+                            <div style="margin-top:12px; padding:10px; background:#f8fafc; border-radius:8px; border-left:4px solid ${isRadiology ? '#cbd5e1' : '#bbf7d0'};">
+                                <div style="font-size:0.65rem; text-transform:uppercase; color:var(--text-muted); font-weight:700; margin-bottom:4px;">
+                                    ${isRadiology ? 'Clinical Impression' : 'Quick Summary'}
+                                </div>
+                                <div style="line-height:1.4; color:var(--text-main);">
+                                    ${item.summary || item.description || 'No data recorded.'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
                 }).join('')}
-            </div>
-        `;
-    } catch (error) {
-        console.error("Fetch error:", error);
-        document.getElementById('detailsPane').innerHTML = `
-            <div style="text-align:center; margin-top:100px; color:var(--text-muted);">
-                <p>Unable to load patient data. Please ensure the patient has a recorded history.</p>
-            </div>
-        `;
+                </div>
+            `;
+        } catch (error) {
+            console.error("Fetch error:", error);
+            document.getElementById('detailsPane').innerHTML = `
+                <div style="text-align:center; margin-top:100px; color:var(--text-muted);">
+                    <p>Unable to load patient data. Please ensure the patient has a recorded history.</p>
+                </div>
+            `;
+        }
     }
-}
 
-async function viewLabDetails(labId) {
-    try {
-        const res = await fetch(`http://localhost:5266/api/Lab/GetLabReport/${labId}`);
-        if (!res.ok) throw new Error("Could not fetch lab details");
-        const data = await res.json();
+    async function viewLabDetails(labId) {
+        try {
+            const res = await fetch(`http://localhost:5266/api/Lab/GetLabReport/${labId}`, {
+                headers: getAuthHeaders()
+            });
 
-        // Bind data to modal
-        document.getElementById('lab-ReportID').innerText = `ID: ${data.labReportIdentifier}`;
-        document.getElementById('lab-Name').innerText = data.patientName;
-        document.getElementById('lab-PID').innerText = data.patientIdentifier;
-        document.getElementById('lab-Sex').innerText = data.patientSex || 'N/A';
-        document.getElementById('lab-DOB').innerText = data.patientDOB;
-        document.getElementById('lab-Date').innerText = new Date(data.createdAt).toLocaleString();
-        
-        document.getElementById('lab-Test').innerText = data.testName;
-        document.getElementById('lab-Value').innerText = `${data.resultValue} ${data.unit}`;
-        document.getElementById('lab-Range').innerText = data.referenceRange;
-        
-        const interpEl = document.getElementById('lab-Interp');
-        interpEl.innerText = data.interpretation;
-        interpEl.style.color = data.interpretation.toLowerCase().includes('normal') ? '#166534' : '#991b1b';
+            if (await handleAuthError(res)) return;
 
-        document.getElementById('labReportModal').style.display = 'block';
-    } catch (err) {
-        console.error("Error loading lab details:", err);
-        alert("Failed to load lab report details.");
+            if (!res.ok) throw new Error("Could not fetch lab details");
+            const data = await res.json();
+
+            document.getElementById('lab-ReportID').innerText = `ID: ${data.labReportIdentifier}`;
+            document.getElementById('lab-Name').innerText = data.patientName;
+            document.getElementById('lab-PID').innerText = data.patientIdentifier;
+            document.getElementById('lab-Sex').innerText = data.patientSex || 'N/A';
+            document.getElementById('lab-DOB').innerText = data.patientDOB;
+            document.getElementById('lab-Date').innerText = new Date(data.createdAt).toLocaleString();
+            document.getElementById('lab-Test').innerText = data.testName;
+            document.getElementById('lab-Value').innerText = `${data.resultValue} ${data.unit}`;
+            document.getElementById('lab-Range').innerText = data.referenceRange;
+
+            const interpEl = document.getElementById('lab-Interp');
+            interpEl.innerText = data.interpretation;
+            interpEl.style.color = data.interpretation.toLowerCase().includes('normal') ? '#166534' : '#991b1b';
+
+            document.getElementById('labReportModal').style.display = 'block';
+        } catch (err) {
+            console.error("Error loading lab details:", err);
+            alert("Failed to load lab report details.");
+        }
     }
-}
 
-function closeLabModal() {
-    document.getElementById('labReportModal').style.display = 'none';
-}
+    function closeLabModal() {
+        document.getElementById('labReportModal').style.display = 'none';
+    }
 
-window.onload = initPortal;
+    window.onload = initPortal;
 </script>
 
 </body>

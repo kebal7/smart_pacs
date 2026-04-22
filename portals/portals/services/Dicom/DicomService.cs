@@ -68,7 +68,7 @@ public class DicomService : IDicomService
         };
 
         ds.AddOrUpdate(new DicomOtherByte(DicomTag.PixelData, pixels));
-
+        Console.WriteLine(ds);
         return ds;
     }
 }

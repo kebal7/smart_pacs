@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SmartPACS | Clinical Viewer</title>
+
+    <script src="https://unpkg.com/cornerstone-core@2.3.0/dist/cornerstone.min.js"></script>
+    <script src="https://unpkg.com/cornerstone-math@0.1.9/dist/cornerstoneMath.min.js"></script>
+    <script src="https://unpkg.com/cornerstone-tools@6.0.7/dist/cornerstoneTools.js"></script>
+    <script src="https://unpkg.com/dicom-parser@1.8.13/dist/dicomParser.min.js"></script>
+    <script src="https://unpkg.com/cornerstone-wado-image-loader@4.13.0/dist/cornerstoneWADOImageLoader.bundle.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #070a0f;
+            --panel: #0d1117;
+            --panel2: #131920;
+            --accent: #00d4ff;
+            --accent-dim: rgba(0, 212, 255, 0.12);
+            --accent-glow: rgba(0, 212, 255, 0.3);
+            --border: #1e2d3d;
+            --border-bright: #2a3f52;
+            --text: #cdd9e5;
+            --text-muted: #5c7a96;
+            --text-dim: #3d5268;
+            --success: #3fb950;
+            --warning: #d29922;
+            --danger: #f85149;
+            --read-only: #ff9500;
+        }
+
+        * { box-sizing: border-box; }
+
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'IBM Plex Sans', sans-serif;
+            overflow: hidden;
+        }
+
+        .layout { display: flex; flex-direction: column; height: 100vh; }
+
+        /* ── TOP BAR ── */
+        .topbar {
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            padding: 0 20px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .brand {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+            letter-spacing: 0.08em;
+            margin-right: 24px;
+            flex-shrink: 0;
+        }
+
+        .read-only-badge {
+            background: rgba(255, 149, 0, 0.12);
+            border: 1px solid rgba(255, 149, 0, 0.35);
+            color: var(--read-only);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            padding: 3px 10px;
+            border-radius: 3px;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+
+        .tool-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border);
+            margin: 0 12px;
+            flex-shrink: 0;
+        }
+
+        .tool-group {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 12px;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-weight: 500;
+            transition: all 0.15s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .btn:hover {
+            background: var(--panel2);
+            border-color: var(--border-bright);
+            color: var(--text);
+        }
+
+        .btn.active {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn .kbd {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 9px;
+            background: var(--panel2);
+            border: 1px solid var(--border);
+            padding: 1px 5px;
+            border-radius: 3px;
+            color: var(--text-dim);
+            transition: inherit;
+        }
+
+        .btn.active .kbd {
+            background: var(--accent-dim);
+            border-color: var(--accent-glow);
+            color: var(--accent);
+        }
+
+        /* instance info right side */
+        .topbar-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .instance-id {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: 0.05em;
+        }
+
+        /* ── MAIN AREA ── */
+        .main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* ── DICOM CANVAS ── */
+        #dicomContainer {
+            flex: 1;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #dicomImage {
+            width: 100%; height: 100%;
+            cursor: crosshair;
+        }
+
+        #measurementOverlay {
+            position: absolute; top: 0; left: 0;
+            pointer-events: none; z-index: 5;
+        }
+
+        /* Corner overlays — patient info watermarks */
+        .corner-overlay {
+            position: absolute;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            color: rgba(0, 212, 255, 0.55);
+            pointer-events: none;
+            z-index: 6;
+            line-height: 1.6;
+            text-shadow: 0 0 8px rgba(0,0,0,0.9);
+        }
+
+        #corner-tl { top: 14px; left: 14px; }
+        #corner-tr { top: 14px; right: 14px; text-align: right; }
+        #corner-bl { bottom: 50px; left: 14px; }
+        #corner-br { bottom: 50px; right: 14px; text-align: right; }
+
+        /* ── STATUS BAR ── */
+        #statusBar {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 36px;
+            background: rgba(7, 10, 15, 0.9);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 24px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            z-index: 10;
+        }
+
+        .status-item { display: flex; gap: 8px; align-items: center; }
+        .status-label { color: var(--text-dim); }
+        .status-val { color: var(--text); }
+
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: 320px;
+            background: var(--panel);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 16px 20px 14px;
+            border-bottom: 1px solid var(--border);
+            background: var(--panel2);
+        }
+
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-title::before {
+            content: '';
+            width: 3px;
+            height: 14px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        .sidebar-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        /* Report sections */
+        .report-section {
+            margin-bottom: 20px;
+        }
+
+        .report-label {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .report-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .report-value {
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.6;
+            background: var(--panel2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            min-height: 36px;
+        }
+
+        .report-value.empty {
+            color: var(--text-dim);
+            font-style: italic;
+            font-size: 12px;
+        }
+
+        .report-value.impression {
+            border-color: var(--accent-glow);
+            background: var(--accent-dim);
+            color: #e6f7ff;
+            font-weight: 500;
+        }
+
+        /* Status badge */
+        .finalized-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(63, 185, 80, 0.12);
+            border: 1px solid rgba(63, 185, 80, 0.35);
+            color: var(--success);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+
+        .finalized-badge::before {
+            content: '●';
+            font-size: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .draft-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(210, 153, 34, 0.12);
+            border: 1px solid rgba(210, 153, 34, 0.35);
+            color: var(--warning);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+
+        .no-report-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(92, 122, 150, 0.1);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 4px 10px;
+            border-radius: 4px;
+        }
+
+        /* AI section */
+        .ai-block {
+            background: var(--panel2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
+
+        /* Signed by */
+        .sign-block {
+            background: var(--panel2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 12px;
+        }
+
+        .sign-name {
+            color: var(--text);
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .sign-date {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-top: 3px;
+        }
+
+        /* Loading skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, var(--panel2) 25%, var(--border) 50%, var(--panel2) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+            height: 14px;
+            margin-bottom: 6px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Auth modal */
+        #authErrorModal {
+            display: none;
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(7, 10, 15, 0.92);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-modal-box {
+            background: var(--panel);
+            padding: 40px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+        }
+
+        .auth-modal-box h2 { color: var(--text); margin: 0 0 10px; }
+        .auth-modal-box p { color: var(--text-muted); margin-bottom: 28px; line-height: 1.6; font-size: 14px; }
+
+        .btn-relogin {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+            font-family: 'IBM Plex Sans', sans-serif;
+        }
+    </style>
+</head>
+<body>
+
+<div class="layout">
+
+    <!-- ── TOP TOOLBAR ── -->
+    <div class="topbar">
+        <div class="brand">SmartPACS</div>
+        <div class="read-only-badge">READ-ONLY</div>
+
+        <div class="tool-group">
+            <button class="btn active" id="btn-Wwwc" onclick="switchTool('Wwwc')">
+                <i data-lucide="sun" size="14"></i> Contrast <span class="kbd">Q</span>
+            </button>
+            <button class="btn" id="btn-Zoom" onclick="switchTool('Zoom')">
+                <i data-lucide="zoom-in" size="14"></i> Zoom <span class="kbd">W</span>
+            </button>
+            <button class="btn" id="btn-Pan" onclick="switchTool('Pan')">
+                <i data-lucide="move" size="14"></i> Pan <span class="kbd">E</span>
+            </button>
+        </div>
+
+        <div class="tool-divider"></div>
+
+        <div class="tool-group">
+            <button class="btn" id="btn-Length" onclick="switchTool('Length')">
+                <i data-lucide="ruler" size="14"></i> Length <span class="kbd">R</span>
+            </button>
+            <button class="btn" id="btn-Angle" onclick="switchTool('Angle')">
+                <i data-lucide="drafting-compass" size="14"></i> Angle <span class="kbd">T</span>
+            </button>
+        </div>
+
+        <div class="tool-divider"></div>
+
+        <div class="tool-group">
+            <button class="btn" onclick="invertImage()">
+                <i data-lucide="circle-half" size="14"></i> Invert <span class="kbd">I</span>
+            </button>
+            <button class="btn" onclick="resetImage()">
+                <i data-lucide="rotate-ccw" size="14"></i> Reset <span class="kbd">C</span>
+            </button>
+        </div>
+
+        <div class="topbar-right">
+            <span class="instance-id" id="topbar-instance">—</span>
+        </div>
+    </div>
+
+    <!-- ── MAIN CONTENT ── -->
+    <div class="main">
+
+        <!-- DICOM VIEWER -->
+        <div id="dicomContainer">
+            <div id="dicomImage"></div>
+            <canvas id="measurementOverlay"></canvas>
+
+            <!-- Corner patient info overlays -->
+            <div class="corner-overlay" id="corner-tl"></div>
+            <div class="corner-overlay" id="corner-tr"></div>
+            <div class="corner-overlay" id="corner-bl"></div>
+            <div class="corner-overlay" id="corner-br"></div>
+
+            <!-- Status bar -->
+            <div id="statusBar">
+                <div class="status-item">
+                    <span class="status-label">TOOL</span>
+                    <span class="status-val" id="stat-tool">Contrast/WL</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">WW</span>
+                    <span class="status-val" id="stat-ww">—</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">WC</span>
+                    <span class="status-val" id="stat-wc">—</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">ZOOM</span>
+                    <span class="status-val" id="stat-zoom">—</span>
+                </div>
+                <div class="status-item" style="margin-left: auto;">
+                    <span class="status-label">PX</span>
+                    <span class="status-val" id="stat-px">—</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- READ-ONLY REPORT SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">Radiology Report</div>
+            </div>
+
+            <div class="sidebar-scroll">
+
+                <!-- Report Status -->
+                <div class="report-section">
+                    <div class="report-label">Status</div>
+                    <div id="report-status-badge">
+                        <div class="skeleton" style="width: 100px;"></div>
+                    </div>
+                </div>
+
+                <!-- Study -->
+                <div class="report-section">
+                    <div class="report-label">Study</div>
+                    <div class="report-value" id="r-study">
+                        <div class="skeleton"></div>
+                        <div class="skeleton" style="width:60%;"></div>
+                    </div>
+                </div>
+
+                <!-- Clinical History -->
+                <div class="report-section">
+                    <div class="report-label">Clinical History</div>
+                    <div class="report-value" id="r-history">
+                        <div class="skeleton"></div>
+                        <div class="skeleton" style="width:80%;"></div>
+                    </div>
+                </div>
+
+                <!-- Findings -->
+                <div class="report-section">
+                    <div class="report-label">Findings</div>
+                    <div class="report-value" id="r-findings">
+                        <div class="skeleton"></div>
+                        <div class="skeleton"></div>
+                        <div class="skeleton" style="width:70%;"></div>
+                    </div>
+                </div>
+
+                <!-- Impression -->
+                <div class="report-section">
+                    <div class="report-label">Impression</div>
+                    <div class="report-value impression" id="r-impression">
+                        <div class="skeleton"></div>
+                        <div class="skeleton" style="width:50%;"></div>
+                    </div>
+                </div>
+
+                <!-- AI Analysis -->
+                <div class="report-section">
+                    <div class="report-label">AI Analysis</div>
+                    <div class="ai-block" id="r-ai">
+                        <div class="skeleton"></div>
+                        <div class="skeleton" style="width:65%;"></div>
+                    </div>
+                </div>
+
+                <!-- Signed By -->
+                <div class="report-section" id="signed-section" style="display:none;">
+                    <div class="report-label">Finalized By</div>
+                    <div class="sign-block">
+                        <div class="sign-name" id="r-finalizedBy">—</div>
+                        <div class="sign-date" id="r-finalizedAt">—</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Auth Error Modal -->
+<div id="authErrorModal">
+    <div class="auth-modal-box">
+        <div style="font-size: 3rem; margin-bottom: 16px;">🔒</div>
+        <h2 id="errTitle">Session Expired</h2>
+        <p id="errDesc">Your security session has timed out. Please sign in again to continue.</p>
+        <button class="btn-relogin" onclick="logout()">Return to Login</button>
+    </div>
+</div>
+
+<script>
+    // ─── AUTH HELPERS ────────────────────────────────────────────────────────────
+    function logout() {
+        localStorage.removeItem('jwtToken');
+        window.location.href = "login.html";
+    }
+
+    if (!localStorage.getItem('jwtToken')) { logout(); }
+
+    function getAuthHeaders() {
+        return {
+            "Authorization": `Bearer ${localStorage.getItem('jwtToken')}`,
+            "Content-Type": "application/json"
+        };
+    }
+
+    function showAuthError(title = "Session Expired", desc = "Your security session has timed out. Please sign in again.") {
+        document.getElementById('errTitle').innerText = title;
+        document.getElementById('errDesc').innerText = desc;
+        document.getElementById('authErrorModal').style.display = 'flex';
+        document.querySelector('.layout').style.filter = 'blur(8px)';
+    }
+
+    async function handleAuthError(res) {
+        if (res.status === 401) { showAuthError("Session Expired", "Your authentication token has expired. Please sign in again to protect patient data."); return true; }
+        if (res.status === 403) { showAuthError("Access Denied", "Your account does not have permission to view this study."); return true; }
+        return false;
+    }
+
+    // ─── CORNERSTONE INIT ────────────────────────────────────────────────────────
+    cornerstoneWADOImageLoader.external.cornerstone = cornerstone;
+    cornerstoneWADOImageLoader.external.dicomParser = dicomParser;
+
+    // Inject JWT into every WADO request
+    cornerstoneWADOImageLoader.configure({
+        beforeSend: function(xhr) {
+            const token = localStorage.getItem('jwtToken');
+            if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+    });
+
+    const element = document.getElementById('dicomImage');
+    const mOverlay = document.getElementById('measurementOverlay');
+    const mCtx = mOverlay.getContext('2d');
+
+    cornerstone.enable(element);
+
+    // ─── STATE ───────────────────────────────────────────────────────────────────
+    let activeTool = 'Wwwc';
+    let isDragging = false;
+    let lastMousePos = { x: 0, y: 0 };
+    let measurements = [];
+    let currentM = null;
+
+    const TOOL_CONFIG = {
+        'Wwwc':   { key: 'q', cursor: 'n-resize',  label: 'Contrast/WL' },
+        'Zoom':   { key: 'w', cursor: 'zoom-in',   label: 'Zoom' },
+        'Pan':    { key: 'e', cursor: 'move',       label: 'Pan' },
+        'Length': { key: 'r', cursor: 'crosshair',  label: 'Length Measure' },
+        'Angle':  { key: 't', cursor: 'crosshair',  label: 'Angle Measure' }
+    };
+
+    const instanceId = new URLSearchParams(window.location.search).get("instanceId") || "";
+    document.getElementById('topbar-instance').innerText = instanceId ? `INST: ${instanceId}` : 'No Instance';
+
+    // ─── KEYBOARD SHORTCUTS ──────────────────────────────────────────────────────
+    window.addEventListener('keydown', (e) => {
+        const tag = document.activeElement.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+        const key = e.key.toLowerCase();
+        for (const [tool, cfg] of Object.entries(TOOL_CONFIG)) {
+            if (key === cfg.key) { switchTool(tool); return; }
+        }
+        if (key === 'i') invertImage();
+        if (key === 'c') resetImage();
+    });
+
+    // ─── OVERLAY RESIZE ──────────────────────────────────────────────────────────
+    function resizeOverlay() {
+        mOverlay.width = element.clientWidth;
+        mOverlay.height = element.clientHeight;
+        drawAll();
+    }
+    window.addEventListener('resize', resizeOverlay);
+
+    // ─── DRAWING ENGINE ──────────────────────────────────────────────────────────
+    function drawAll() {
+        mCtx.clearRect(0, 0, mOverlay.width, mOverlay.height);
+        try {
+            const image = cornerstone.getEnabledElement(element).image;
+            if (!image) return;
+
+            const rowSpc = image.rowPixelSpacing || 1;
+            const colSpc = image.columnPixelSpacing || 1;
+            const isCalibrated = !!image.rowPixelSpacing;
+
+            const all = currentM ? [...measurements, currentM] : measurements;
+
+            all.forEach(m => {
+                if (!m.points[0] || !m.points[1]) return;
+                const p1 = cornerstone.pixelToCanvas(element, m.points[0]);
+                const p2 = cornerstone.pixelToCanvas(element, m.points[1]);
+
+                mCtx.strokeStyle = isCalibrated ? "#00d4ff" : "#f59e0b";
+                mCtx.fillStyle = mCtx.strokeStyle;
+                mCtx.lineWidth = 1.5;
+
+                mCtx.beginPath();
+                if (!isCalibrated) mCtx.setLineDash([5, 4]);
+                mCtx.moveTo(p1.x, p1.y); mCtx.lineTo(p2.x, p2.y);
+                mCtx.stroke();
+                mCtx.setLineDash([]);
+
+                // Endpoint dots
+                [p1, p2].forEach(pt => {
+                    mCtx.beginPath();
+                    mCtx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
+                    mCtx.fill();
+                });
+
+                const dx = (m.points[1].x - m.points[0].x) * colSpc;
+                const dy = (m.points[1].y - m.points[0].y) * rowSpc;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const label = dist.toFixed(2) + (isCalibrated ? " mm" : " px");
+
+                // Label background
+                mCtx.font = "bold 11px 'IBM Plex Mono', monospace";
+                const tw = mCtx.measureText(label).width;
+                mCtx.fillStyle = 'rgba(7,10,15,0.8)';
+                mCtx.fillRect(p2.x + 8, p2.y - 14, tw + 8, 18);
+                mCtx.fillStyle = isCalibrated ? "#00d4ff" : "#f59e0b";
+                mCtx.fillText(label, p2.x + 12, p2.y + 1);
+
+                if (m.type === 'Angle' && m.points[2]) {
+                    const p3 = cornerstone.pixelToCanvas(element, m.points[2]);
+                    mCtx.strokeStyle = isCalibrated ? "#00d4ff" : "#f59e0b";
+                    mCtx.beginPath();
+                    mCtx.moveTo(p2.x, p2.y); mCtx.lineTo(p3.x, p3.y);
+                    mCtx.stroke();
+                    const angle = calculateAngle(m.points[0], m.points[1], m.points[2]);
+                    mCtx.fillStyle = 'rgba(7,10,15,0.8)';
+                    mCtx.fillRect(p2.x - 30, p2.y - 26, 52, 18);
+                    mCtx.fillStyle = "#00d4ff";
+                    mCtx.fillText(angle.toFixed(1) + "°", p2.x - 26, p2.y - 12);
+                }
+            });
+        } catch(e) { /* image not loaded yet */ }
+    }
+
+    function calculateAngle(p1, p2, p3) {
+        const d12 = Math.sqrt(Math.pow(p1.x-p2.x,2) + Math.pow(p1.y-p2.y,2));
+        const d23 = Math.sqrt(Math.pow(p2.x-p3.x,2) + Math.pow(p2.y-p3.y,2));
+        const d13 = Math.sqrt(Math.pow(p1.x-p3.x,2) + Math.pow(p1.y-p3.y,2));
+        return Math.acos((d12*d12 + d23*d23 - d13*d13) / (2*d12*d23)) * (180 / Math.PI);
+    }
+
+    // ─── MOUSE EVENTS ────────────────────────────────────────────────────────────
+    element.addEventListener('mousedown', (e) => {
+        const rect = element.getBoundingClientRect();
+        const pixelPos = cornerstone.canvasToPixel(element, { x: e.clientX - rect.left, y: e.clientY - rect.top });
+
+        if (activeTool === 'Length') {
+            currentM = { type: 'Length', points: [pixelPos, pixelPos] };
+        } else if (activeTool === 'Angle') {
+            if (!currentM) {
+                currentM = { type: 'Angle', points: [pixelPos, pixelPos, pixelPos] };
+            } else {
+                currentM.points[2] = pixelPos;
+                measurements.push(currentM);
+                currentM = null;
+                drawAll(); return;
+            }
+        }
+        isDragging = true;
+        lastMousePos = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        // Update status bar pixel position
+        try {
+            const rect = element.getBoundingClientRect();
+            const cp = cornerstone.canvasToPixel(element, { x: e.clientX - rect.left, y: e.clientY - rect.top });
+            document.getElementById('stat-px').innerText = `${Math.round(cp.x)}, ${Math.round(cp.y)}`;
+        } catch(ex) {}
+
+        if (!isDragging) return;
+        const rect = element.getBoundingClientRect();
+        const pixelPos = cornerstone.canvasToPixel(element, { x: e.clientX - rect.left, y: e.clientY - rect.top });
+
+        if (currentM) {
+            if (activeTool === 'Length' || activeTool === 'Angle') currentM.points[1] = pixelPos;
+            drawAll(); return;
+        }
+
+        const deltaX = e.clientX - lastMousePos.x;
+        const deltaY = e.clientY - lastMousePos.y;
+        lastMousePos = { x: e.clientX, y: e.clientY };
+
+        const vp = cornerstone.getViewport(element);
+        if (activeTool === 'Zoom' || e.buttons === 2) {
+            vp.scale = Math.max(0.1, vp.scale + (deltaY * -0.005));
+        } else if (activeTool === 'Pan') {
+            vp.translation.x += (deltaX / vp.scale);
+            vp.translation.y += (deltaY / vp.scale);
+        } else if (activeTool === 'Wwwc') {
+            vp.voi.windowWidth = Math.max(1, vp.voi.windowWidth + (deltaX * 4));
+            vp.voi.windowCenter += (deltaY * 4);
+        }
+        cornerstone.setViewport(element, vp);
+
+        // Update status bar
+        document.getElementById('stat-ww').innerText = Math.round(vp.voi.windowWidth);
+        document.getElementById('stat-wc').innerText = Math.round(vp.voi.windowCenter);
+        document.getElementById('stat-zoom').innerText = (vp.scale * 100).toFixed(0) + '%';
+        drawAll();
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (activeTool === 'Length' && currentM) {
+            measurements.push(currentM);
+            currentM = null;
+        }
+        isDragging = false;
+        drawAll();
+    });
+
+    element.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const vp = cornerstone.getViewport(element);
+        vp.scale = Math.max(0.1, vp.scale * (e.deltaY > 0 ? 0.9 : 1.1));
+        cornerstone.setViewport(element, vp);
+        document.getElementById('stat-zoom').innerText = (vp.scale * 100).toFixed(0) + '%';
+        drawAll();
+    }, { passive: false });
+
+    element.oncontextmenu = (e) => e.preventDefault();
+
+    // ─── TOOL SWITCH ─────────────────────────────────────────────────────────────
+    function switchTool(name) {
+        activeTool = name;
+        document.querySelectorAll('.btn[id^="btn-"]').forEach(b => b.classList.remove('active'));
+        const btn = document.getElementById(`btn-${name}`);
+        if (btn) btn.classList.add('active');
+        element.style.cursor = TOOL_CONFIG[name].cursor;
+        document.getElementById('stat-tool').innerText = TOOL_CONFIG[name].label;
+    }
+
+    // ─── IMAGE TOOLS ─────────────────────────────────────────────────────────────
+    function invertImage() {
+        const vp = cornerstone.getViewport(element);
+        vp.invert = !vp.invert;
+        cornerstone.setViewport(element, vp);
+    }
+
+    function resetImage() {
+        measurements = [];
+        cornerstone.reset(element);
+        drawAll();
+    }
+
+    // ─── LOAD IMAGE ──────────────────────────────────────────────────────────────
+    const imageUrl = `wadouri:http://localhost:5266/api/Clinician/DownloadDicom?instanceId=${instanceId}`;
+
+    cornerstone.loadAndCacheImage(imageUrl).then(img => {
+        cornerstone.displayImage(element, img);
+        resizeOverlay();
+        lucide.createIcons();
+
+        // Populate status bar initial values
+        const vp = cornerstone.getViewport(element);
+        document.getElementById('stat-ww').innerText = Math.round(vp.voi.windowWidth);
+        document.getElementById('stat-wc').innerText = Math.round(vp.voi.windowCenter);
+        document.getElementById('stat-zoom').innerText = (vp.scale * 100).toFixed(0) + '%';
+
+        // Populate corner overlays from DICOM metadata
+        populateCorners(img);
+
+    }).catch(err => {
+        console.error("Image load error:", err);
+        if (err.status === 401 || err.status === 403) {
+            showAuthError();
+        } else {
+            document.getElementById('corner-bl').innerText = '⚠ PACS server unreachable';
+        }
+    });
+
+    function populateCorners(img) {
+        // Cornerstone exposes parsed DICOM tags via the data object
+        const data = img.data;
+        if (!data) return;
+
+        const getString = (tag) => { try { return data.string(tag) || ''; } catch(e) { return ''; } };
+
+        const patName   = getString('x00100010');
+        const patId     = getString('x00100020');
+        const studyDate = getString('x00080020');
+        const modality  = getString('x00080060');
+        const studyDesc = getString('x00081030');
+        const institution = getString('x00080080');
+
+        // Format study date YYYYMMDD → DD/MM/YYYY
+        let dateStr = studyDate;
+        if (studyDate && studyDate.length === 8) {
+            dateStr = `${studyDate.slice(6,8)}/${studyDate.slice(4,6)}/${studyDate.slice(0,4)}`;
+        }
+
+        document.getElementById('corner-tl').innerHTML =
+            `${patName || 'Unknown'}<br>${patId || '—'}`;
+
+        document.getElementById('corner-tr').innerHTML =
+            `${modality || '—'}<br>${dateStr || '—'}`;
+
+        document.getElementById('corner-bl').innerHTML =
+            studyDesc || '';
+
+        document.getElementById('corner-br').innerHTML =
+            institution || '';
+    }
+
+    // ─── LOAD FINALIZED REPORT ───────────────────────────────────────────────────
+    async function loadReport() {
+        if (!instanceId) {
+            renderReportEmpty();
+            return;
+        }
+
+        try {
+            const res = await fetch(
+                `http://localhost:5266/api/Clinician/GetReport?instanceId=${instanceId}`,
+                { headers: getAuthHeaders() }
+            );
+
+            if (await handleAuthError(res)) return;
+
+            if (res.status === 404) {
+                renderReportEmpty();
+                return;
+            }
+
+            if (!res.ok) throw new Error("Server error");
+
+            const data = await res.json();
+            renderReport(data);
+
+        } catch(err) {
+            console.error("Report fetch error:", err);
+            renderReportEmpty();
+        }
+    }
+
+    function renderReport(data) {
+        // Status badge
+        const badge = data.isFinalized
+            ? `<div class="finalized-badge">FINALIZED</div>`
+            : `<div class="draft-badge">DRAFT — Pending Radiologist Review</div>`;
+        document.getElementById('report-status-badge').innerHTML = badge;
+
+        // Fields
+        setField('r-study',    data.studyDescription);
+        setField('r-history',  data.clinicalHistory);
+        setField('r-findings', data.findings);
+        setField('r-impression', data.impression, true);
+        setField('r-ai', data.aiSuggestion, false, 'ai-block');
+
+        // Signed section
+        if (data.isFinalized && data.finalizedBy) {
+            document.getElementById('signed-section').style.display = 'block';
+            document.getElementById('r-finalizedBy').innerText = data.finalizedBy || '—';
+            document.getElementById('r-finalizedAt').innerText = data.finalizedAt
+                ? new Date(data.finalizedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+                : '—';
+        }
+    }
+
+    function renderReportEmpty() {
+        document.getElementById('report-status-badge').innerHTML =
+            `<div class="no-report-badge">NO REPORT — Not yet reported</div>`;
+
+        ['r-study','r-history','r-findings'].forEach(id => {
+            const el = document.getElementById(id);
+            el.innerHTML = '';
+            el.classList.add('empty');
+            el.innerText = 'Not available';
+        });
+
+        const imp = document.getElementById('r-impression');
+        imp.innerHTML = ''; imp.classList.add('empty');
+        imp.innerText = 'Awaiting radiologist impression';
+
+        const ai = document.getElementById('r-ai');
+        ai.innerHTML = '';
+        ai.innerText = 'No AI analysis recorded';
+    }
+
+    function setField(id, value, isImpression = false, extraClass = '') {
+        const el = document.getElementById(id);
+        el.innerHTML = '';
+        if (extraClass) el.className = extraClass;
+
+        if (!value || value.trim() === '') {
+            el.classList.add('empty');
+            el.innerText = isImpression ? 'No impression recorded' : 'Not provided';
+        } else {
+            el.classList.remove('empty');
+            el.innerText = value;
+        }
+    }
+
+    // ─── BOOT ────────────────────────────────────────────────────────────────────
+    lucide.createIcons();
+    loadReport();
+</script>
+
+</body>
+</html>

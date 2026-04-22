@@ -11,7 +11,7 @@ using System.Security.Claims;
 
 namespace portals.Controllers;
 
-    [Authorize(Roles = "Radiologist", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    [Authorize(Roles = "Radiologist,Clinician", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     [ApiController]
     [Route("api/[controller]")]
     
@@ -77,6 +77,7 @@ namespace portals.Controllers;
         }
         
         // GET: /Radiologist/ListDicoms
+        [Authorize(Roles = "Radiologist")]
         [HttpGet("ListDicoms")] 
         public async Task<IActionResult> ListDicoms()
         {
@@ -123,74 +124,75 @@ namespace portals.Controllers;
             // 3. Return file to browser
             return File(bytes, "application/dicom", fileName);
         }
-        
-[HttpGet("GetWorklist")]
-public async Task<IActionResult> GetWorklist(
-    [FromQuery] int page = 1, 
-    [FromQuery] int pageSize = 10, 
-    [FromQuery] string search = "", 
-    [FromQuery] string status = "All")
-{
-    var query = _context.Reports.AsQueryable();
-
-    // 1. Search filter
-    if (!string.IsNullOrWhiteSpace(search))
+    
+        [Authorize(Roles = "Radiologist")]
+    [HttpGet("GetWorklist")]
+    public async Task<IActionResult> GetWorklist(
+        [FromQuery] int page = 1, 
+        [FromQuery] int pageSize = 10, 
+        [FromQuery] string search = "", 
+        [FromQuery] string status = "All")
     {
-        string s = search.ToLower();
-        query = query.Where(r => r.PatientName.ToLower().Contains(s) || 
-                                 r.PatientIdentifier.ToLower().Contains(s) || 
-                                 r.InstanceNumber.Contains(s));
+        var query = _context.Reports.AsQueryable();
+
+        // 1. Search filter
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string s = search.ToLower();
+            query = query.Where(r => r.PatientName.ToLower().Contains(s) || 
+                                     r.PatientIdentifier.ToLower().Contains(s) || 
+                                     r.InstanceNumber.Contains(s));
+        }
+
+        // 2. Status filter
+        if (status != "All")
+        {
+            if (status == "New") query = query.Where(r => !r.IsFinalized && string.IsNullOrEmpty(r.Findings));
+            else if (status == "Draft") query = query.Where(r => !r.IsFinalized && !string.IsNullOrEmpty(r.Findings));
+            else if (status == "Finalized") query = query.Where(r => r.IsFinalized);
+        }
+
+        // 3. Get the data
+        var rawData = await query.ToListAsync();
+
+        // 4. HELPER: Extract percentage from string "Label (XX.X%)"
+        double GetPercentage(string aiStr) {
+            if (string.IsNullOrEmpty(aiStr)) return -1;
+            var match = System.Text.RegularExpressions.Regex.Match(aiStr, @"(\d+(\.\d+)?)");
+            return match.Success ? double.Parse(match.Value) : -1;
+        }
+
+        // 5. MASTER SORTING LOGIC:
+        // Priority 1: Unfinalized (New/Draft) first
+        // Priority 2: Highest AI Percentage first
+        // Priority 3: Newest Date first
+        var sortedData = rawData
+            .OrderBy(r => r.IsFinalized) 
+            .ThenByDescending(r => GetPercentage(r.AiSuggestion)) 
+            .ThenByDescending(r => r.CreatedAt)
+            .ToList();
+
+        int totalCount = sortedData.Count;
+        int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+        var pagedData = sortedData
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(r => new {
+                r.InstanceNumber,
+                r.PatientIdentifier,
+                r.PatientName,
+                r.Modality,
+                r.CreatedAt,
+                r.AiSuggestion,
+                r.IsFinalized,
+                r.Findings
+            });
+
+        return Ok(new { totalCount, totalPages, currentPage = page, data = pagedData });
     }
-
-    // 2. Status filter
-    if (status != "All")
-    {
-        if (status == "New") query = query.Where(r => !r.IsFinalized && string.IsNullOrEmpty(r.Findings));
-        else if (status == "Draft") query = query.Where(r => !r.IsFinalized && !string.IsNullOrEmpty(r.Findings));
-        else if (status == "Finalized") query = query.Where(r => r.IsFinalized);
-    }
-
-    // 3. Get the data
-    var rawData = await query.ToListAsync();
-
-    // 4. HELPER: Extract percentage from string "Label (XX.X%)"
-    double GetPercentage(string aiStr) {
-        if (string.IsNullOrEmpty(aiStr)) return -1;
-        var match = System.Text.RegularExpressions.Regex.Match(aiStr, @"(\d+(\.\d+)?)");
-        return match.Success ? double.Parse(match.Value) : -1;
-    }
-
-    // 5. MASTER SORTING LOGIC:
-    // Priority 1: Unfinalized (New/Draft) first
-    // Priority 2: Highest AI Percentage first
-    // Priority 3: Newest Date first
-    var sortedData = rawData
-        .OrderBy(r => r.IsFinalized) 
-        .ThenByDescending(r => GetPercentage(r.AiSuggestion)) 
-        .ThenByDescending(r => r.CreatedAt)
-        .ToList();
-
-    int totalCount = sortedData.Count;
-    int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
-
-    var pagedData = sortedData
-        .Skip((page - 1) * pageSize)
-        .Take(pageSize)
-        .Select(r => new {
-            r.InstanceNumber,
-            r.PatientIdentifier,
-            r.PatientName,
-            r.Modality,
-            r.CreatedAt,
-            r.AiSuggestion,
-            r.IsFinalized,
-            r.Findings
-        });
-
-    return Ok(new { totalCount, totalPages, currentPage = page, data = pagedData });
-}
         
-
+        [Authorize(Roles = "Radiologist")]
     [HttpPost("UpdateReport")]
     public async Task<IActionResult> UpdateReport([FromBody] UpdateReportRequest model)
     {
@@ -318,6 +320,7 @@ public async Task<IActionResult> GetWorklist(
             return Ok(report); 
         }
         
+        [Authorize(Roles = "Radiologist")]
         [HttpPost("AnalyzeWithAi/{instanceId}")]
         public async Task<IActionResult> AnalyzeWithAi(string instanceId)
         {

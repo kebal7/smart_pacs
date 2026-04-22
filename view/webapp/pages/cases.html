@@ -13,354 +13,783 @@
             --accent: #2563eb;
             --border: #e2e8f0;
             --text-muted: #64748b;
+            --danger: #ef4444;
         }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; color: var(--primary); overflow: hidden; }
-        
-        /* Layout Panes */
-        .sidebar { width: 300px; min-width: 300px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-        .case-pane { width: 320px; min-width: 320px; background: #f8fafc; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-        .main-view { flex-grow: 1; padding: 40px; overflow-y: auto; background: var(--bg); }
 
-        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); }
-        .sidebar-header input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); outline: none; box-sizing: border-box; }
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            margin: 0;
+            color: var(--primary);
+        }
+
+        /* ══ AUTH MODAL sits at <body> level, OUTSIDE #appWrapper ══
+           This is the key fix: CSS filter on a parent does NOT affect
+           fixed-position children in modern browsers, BUT to be safe
+           we keep the modal completely outside the blurred wrapper.    */
+        #authErrorModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 99999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            max-width: 440px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4);
+        }
+
+        .auth-modal-content h2 { margin: 0 0 10px; font-size: 1.5rem; color: var(--primary); }
+        .auth-modal-content p  { color: var(--text-muted); margin-bottom: 28px; line-height: 1.6; font-size: 0.95rem; }
+        .modal-icon { font-size: 3rem; margin-bottom: 16px; }
+
+        .btn-relogin {
+            background: var(--accent); color: white; border: none;
+            padding: 13px 28px; border-radius: 8px; font-weight: 600;
+            cursor: pointer; width: 100%; font-size: 1rem; font-family: inherit;
+        }
+
+        /* ══ APP WRAPPER — blurred on auth error ══ */
+        #appWrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            transition: filter 0.2s;
+        }
+
+        /* ── HEADER ── */
+        .app-header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 0 24px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+            z-index: 50;
+        }
+
+        .header-brand {
+            font-size: 1rem; font-weight: 700;
+            letter-spacing: -0.02em; color: white;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .header-brand span { font-weight: 300; opacity: 0.55; font-size: 0.85rem; }
+
+        .header-nav { display: flex; align-items: center; gap: 4px; }
+
+        .nav-link {
+            color: rgba(255,255,255,0.55); text-decoration: none;
+            font-size: 0.82rem; font-weight: 500; padding: 6px 12px;
+            border-radius: 6px; transition: all 0.15s; border: 1px solid transparent;
+        }
+
+        .nav-link:hover { color: white; background: rgba(255,255,255,0.08); }
+
+        .nav-link.active {
+            color: white; background: rgba(37,99,235,0.4);
+            border-color: rgba(37,99,235,0.5);
+        }
+
+        .btn-logout {
+            background: transparent; color: rgba(255,255,255,0.55);
+            border: 1px solid rgba(255,255,255,0.2); padding: 5px 14px;
+            border-radius: 6px; cursor: pointer; font-size: 0.8rem;
+            font-family: inherit; transition: all 0.15s;
+        }
+
+        .btn-logout:hover { color: white; border-color: rgba(255,255,255,0.5); }
+
+        /* ── THREE-PANE BODY ── */
+        .app-body { display: flex; flex: 1; overflow: hidden; }
+
+        .sidebar {
+            width: 280px; min-width: 280px;
+            background: var(--sidebar); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+        }
+
+        .case-pane {
+            width: 300px; min-width: 300px;
+            background: #f8fafc; border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+        }
+
+        .main-view {
+            flex-grow: 1; padding: 36px 40px;
+            overflow-y: auto; background: var(--bg);
+        }
+
+        .sidebar-header {
+            padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+        }
+
+        .sidebar-header h3, .sidebar-header h4 { margin: 0 0 10px; }
+
+        .sidebar-header input {
+            width: 100%; padding: 9px 12px; border-radius: 8px;
+            border: 1px solid var(--border); outline: none;
+            font-size: 0.875rem; font-family: inherit;
+        }
+
+        .sidebar-header input:focus {
+            border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
 
         .list-container { overflow-y: auto; flex-grow: 1; }
 
-        .patient-item, .episode-card { 
-            padding: 15px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: 0.2s; background: white;
+        .patient-item, .episode-card {
+            padding: 14px 20px; border-bottom: 1px solid var(--border);
+            cursor: pointer; transition: background 0.15s; background: white;
         }
+
         .patient-item:hover, .episode-card:hover { background: #f1f5f9; }
-        .patient-item.active, .episode-card.active { background: #eff6ff; border-left: 4px solid var(--accent); }
+        .patient-item.active { background: #eff6ff; border-left: 4px solid var(--accent); }
+        .episode-card.active { background: #eff6ff; border-left: 4px solid var(--accent); }
 
-        /* Detail Components */
-        .card { background: white; padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        /* ── CARDS & COMPONENTS ── */
+        .card {
+            background: white; padding: 24px; border-radius: 12px;
+            border: 1px solid var(--border); margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        
-        .btn { padding: 10px 20px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; }
-        .btn-primary { background: var(--accent); color: white; }
-        
-        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index: 1000; backdrop-filter: blur(2px); }
 
+        .btn {
+            padding: 10px 20px; border-radius: 6px; border: none;
+            font-weight: 600; cursor: pointer; font-family: inherit;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .btn-small { padding: 6px 12px; font-size: 0.75rem; background: #fff; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-weight: 500; }
+
+        .btn-small {
+            padding: 5px 12px; font-size: 0.75rem; background: #fff;
+            border: 1px solid var(--border); border-radius: 6px;
+            cursor: pointer; font-weight: 500; font-family: inherit;
+        }
+
         .btn-small:hover { border-color: var(--accent); color: var(--accent); }
-        
         .scroll-box { max-height: 280px; overflow-y: auto; border-radius: 8px; }
 
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        thead th { position: sticky; top: 0; background: white; z-index: 10; text-align: left; padding: 10px; border-bottom: 2px solid var(--border); color: var(--text-muted); }
+        thead th {
+            position: sticky; top: 0; background: white; z-index: 10;
+            text-align: left; padding: 10px; border-bottom: 2px solid var(--border);
+            color: var(--text-muted);
+        }
         td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; }
-        
-        .med-pill { background: #f0fdf4; border: 1px solid #dcfce7; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
 
-        input, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid var(--border); border-radius: 8px; box-sizing: border-box; font-family: inherit; }
+        .med-pill {
+            background: #f0fdf4; border: 1px solid #dcfce7; padding: 14px;
+            border-radius: 10px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
 
-        /* Timeline-Style Evidence Styles */
+        input[type=text], input[type=number], textarea, select {
+            width: 100%; padding: 11px 12px; margin: 6px 0;
+            border: 1px solid var(--border); border-radius: 8px;
+            font-family: inherit; font-size: 0.9rem;
+        }
+
+        input[type=text]:focus, input[type=number]:focus, textarea:focus, select:focus {
+            outline: none; border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+
+        /* ── APP MODALS (fixed, inside wrapper — unaffected by wrapper blur) ── */
+        .modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.45); align-items: center;
+            justify-content: center; z-index: 1000; backdrop-filter: blur(2px);
+        }
+
+        /* ── EVIDENCE TIMELINE ── */
         .evidence-timeline { position: relative; padding-left: 30px; margin-top: 10px; }
-        .evidence-timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+        .evidence-timeline::before {
+            content: ''; position: absolute; left: 7px; top: 0; bottom: 0;
+            width: 2px; background: var(--border);
+        }
         .evidence-item { position: relative; margin-bottom: 25px; }
-        .evidence-dot { position: absolute; left: -30px; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 3px solid white; box-shadow: 0 0 0 1px var(--border); }
-        .evidence-content { background: #f8fafc; border: 1px solid var(--border); padding: 15px; border-radius: 10px; }
+        .evidence-dot {
+            position: absolute; left: -30px; width: 14px; height: 14px;
+            border-radius: 50%; background: var(--accent);
+            border: 3px solid white; box-shadow: 0 0 0 1px var(--border);
+        }
+        .evidence-content {
+            background: #f8fafc; border: 1px solid var(--border);
+            padding: 15px; border-radius: 10px;
+        }
     </style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <h3>Patients</h3>
-            <input type="text" placeholder="Search Patients...">
+<!-- AUTH MODAL — outside #appWrapper so it's never blurred -->
+<div id="authErrorModal">
+    <div class="auth-modal-content">
+        <div class="modal-icon">🛡️</div>
+        <h2 id="errorTitle">Session Security Alert</h2>
+        <p id="errorDescription">Your security token is invalid or has expired. Please sign in again.</p>
+        <button class="btn-relogin" onclick="logout()">Return to Login</button>
+    </div>
+</div>
+
+<!-- APP WRAPPER — this is what gets blurred; modal above is untouched -->
+<div id="appWrapper">
+
+    <header class="app-header">
+            <div style="display:flex; align-items:center; gap:18px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:38px; height:38px; background:linear-gradient(135deg,#0ea5c8,#264785); border-radius:9px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 16px rgba(14,165,200,0.25); flex-shrink:0;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"/>
+                        <path d="M8 12h8M12 8v8"/>
+                        <circle cx="12" cy="12" r="3" fill="white" stroke="none" opacity=".4"/>
+                    </svg>
+                </div>
+                <span style="font-family:'DM Serif Display',serif; font-size:20px; color:#fff; letter-spacing:0.3px;">Smart<span style="color:#0ea5c8;">PACS</span></span>
+            </div>
+            <div style="width:1px; height:32px; background:rgba(255,255,255,0.25);"></div>
+            <div>
+                <div style="font-size:0.85rem; font-weight:300; opacity:0.85; letter-spacing:0.05em;">Radiographer Portal</div>
+            </div>
         </div>
-        <div id="patientList" class="list-container"></div>
+        <nav class="header-nav">
+            <a href="./clinician.html" class="nav-link">📋 Timeline</a>
+            <a href="case-management.html"  class="nav-link active">🗂️ Cases</a>
+        </nav>
+        <button class="btn-logout" onclick="logout()">⎋ Logout</button>
+    </header>
+
+    <div class="app-body">
+
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h3>Patients</h3>
+                <input type="text" placeholder="Search Patients...">
+            </div>
+            <div id="patientList" class="list-container"></div>
+        </div>
+
+        <div class="case-pane">
+            <div class="sidebar-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h4>Episodes</h4>
+                <button id="btnNewCase" class="btn-primary"
+                    style="padding:6px 12px; font-size:0.75rem; border-radius:6px; display:none;"
+                    onclick="showModal('caseModal')">+ New</button>
+            </div>
+            <div id="caseList" class="list-container">
+                <p style="text-align:center; color:var(--text-muted); margin-top:50px; font-size:0.875rem;">
+                    Select a patient
+                </p>
+            </div>
+        </div>
+
+        <div class="main-view" id="mainView">
+            <div style="text-align:center; margin-top:100px; color:var(--text-muted);">
+                <h2>Management Dashboard</h2>
+                <p>Select a clinical episode to view details.</p>
+            </div>
+        </div>
+
     </div>
 
-    <div class="case-pane">
-        <div class="sidebar-header" style="display:flex; justify-content:space-between; align-items:center;">
-            <h4 style="margin:0">Episodes</h4>
-            <button id="btnNewCase" class="btn-primary" style="padding:6px 12px; font-size:0.75rem; border-radius:6px; display:none;" onclick="showModal('caseModal')">+ New</button>
-        </div>
-        <div id="caseList" class="list-container">
-            <p style="text-align:center; color: var(--text-muted); margin-top: 50px;">Select a patient</p>
-        </div>
-    </div>
-
-    <div class="main-view" id="mainView">
-        <div style="text-align:center; margin-top:100px; color: var(--text-muted);">
-            <h2>Management Dashboard</h2>
-            <p>Select a clinical episode to view details.</p>
+    <!-- App modals (fixed pos, inside wrapper — CSS filter does not affect fixed children) -->
+    <div id="caseModal" class="modal">
+        <div class="card" style="width:400px;">
+            <h3 style="margin-top:0;">New Case</h3>
+            <input type="text" id="mCaseTitle" placeholder="Case title">
+            <input type="text" id="mCaseGoal"  placeholder="Treatment goal">
+            <div style="margin-top:16px; display:flex; gap:10px;">
+                <button class="btn btn-primary" style="flex:1" onclick="submitCase()">Create</button>
+                <button class="btn" style="border:1px solid var(--border);" onclick="closeModals()">Cancel</button>
+            </div>
         </div>
     </div>
 
-    <!-- Modals -->
-    <div id="caseModal" class="modal"><div class="card" style="width:400px;"><h3>New Case</h3><input type="text" id="mCaseTitle" placeholder="Title"><input type="text" id="mCaseGoal" placeholder="Goal"><div style="margin-top:20px; display:flex; gap:10px;"><button class="btn btn-primary" style="flex:1" onclick="submitCase()">Create</button><button class="btn" onclick="closeModals()">Cancel</button></div></div></div>
-    <div id="vitalModal" class="modal"><div class="card" style="width:350px;"><h3>Record Vitals</h3><input type="number" step="0.1" id="vTemp" placeholder="Temp (°C)"><input type="text" id="vBP" placeholder="BP"><input type="number" id="vSpO2" placeholder="SpO2 (%)"><div style="margin-top:20px; display:flex; gap:10px;"><button class="btn btn-primary" style="flex:1" onclick="submitVital()">Save</button><button class="btn" onclick="closeModals()">Cancel</button></div></div></div>
-    <div id="medModal" class="modal"><div class="card" style="width:350px;"><h3>Prescribe</h3><input type="text" id="mDrug" placeholder="Drug"><input type="text" id="mDosage" placeholder="Dosage"><input type="text" id="mFreq" placeholder="Frequency"><div style="margin-top:20px; display:flex; gap:10px;"><button class="btn btn-primary" style="flex:1" onclick="submitMedication()">Add</button><button class="btn" onclick="closeModals()">Cancel</button></div></div></div>
-    <div id="linkRecordModal" class="modal"><div class="card" style="width:500px; max-height:80vh; overflow-y:auto;"><h3>Link Records</h3><div id="linkableRecordsList"></div><button class="btn" onclick="closeModals()" style="width:100%; margin-top:20px;">Done</button></div></div>
-    <div id="labReportModal" class="modal"><div class="card" style="max-width:800px; margin:50px auto; padding:40px; position:relative;"><button onclick="closeModals()" style="position:absolute; right:20px; top:20px; border:none; background:#f1f5f9; width:32px; height:32px; border-radius:50%; cursor:pointer;">&times;</button><div id="labContent"></div></div></div>
+    <div id="vitalModal" class="modal">
+        <div class="card" style="width:340px;">
+            <h3 style="margin-top:0;">Record Vitals</h3>
+            <input type="number" step="0.1" id="vTemp"  placeholder="Temperature (°C)">
+            <input type="text"             id="vBP"    placeholder="Blood Pressure (e.g. 120/80)">
+            <input type="number"           id="vSpO2"  placeholder="SpO2 (%)">
+            <div style="margin-top:16px; display:flex; gap:10px;">
+                <button class="btn btn-primary" style="flex:1" onclick="submitVital()">Save</button>
+                <button class="btn" style="border:1px solid var(--border);" onclick="closeModals()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="medModal" class="modal">
+        <div class="card" style="width:340px;">
+            <h3 style="margin-top:0;">Prescribe Medication</h3>
+            <input type="text" id="mDrug"   placeholder="Drug name">
+            <input type="text" id="mDosage" placeholder="Dosage (e.g. 500mg)">
+            <input type="text" id="mFreq"   placeholder="Frequency (e.g. Twice daily)">
+            <div style="margin-top:16px; display:flex; gap:10px;">
+                <button class="btn btn-primary" style="flex:1" onclick="submitMedication()">Add</button>
+                <button class="btn" style="border:1px solid var(--border);" onclick="closeModals()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="linkRecordModal" class="modal">
+        <div class="card" style="width:500px; max-height:80vh; overflow-y:auto;">
+            <h3 style="margin-top:0;">Link Records to Case</h3>
+            <div id="linkableRecordsList"></div>
+            <button class="btn" style="width:100%; margin-top:20px; border:1px solid var(--border);"
+                onclick="closeModals()">Done</button>
+        </div>
+    </div>
+
+    <div id="labReportModal" class="modal">
+        <div class="card" style="max-width:780px; width:90%; position:relative;">
+            <button onclick="closeModals()"
+                style="position:absolute; right:16px; top:16px; border:none; background:#f1f5f9;
+                       width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:1rem;">&times;</button>
+            <div id="labContent"></div>
+        </div>
+    </div>
+
+</div><!-- /#appWrapper -->
 
 <script>
-let selectedPID = null;
-let currentCaseId = null;
+    // ─── AUTH HELPERS ────────────────────────────────────────────────────────────
 
-async function init() {
-    try {
-        const res = await fetch('http://localhost:5266/api/Clinician/Patients');
-        const data = await res.json();
-        document.getElementById('patientList').innerHTML = data.map(p => `
-            <div class="patient-item" onclick="selectPatient('${p.patientIdentifier || p.PatientIdentifier}', '${p.patientName || p.name}')">
-                <div style="font-weight:600;">${p.patientName || p.name}</div>
-                <div style="font-size:0.75rem; color:var(--text-muted);">${p.patientIdentifier || p.PatientIdentifier}</div>
-            </div>
-        `).join('');
-    } catch (err) { console.error(err); }
-}
+    function logout() {
+        localStorage.removeItem('jwtToken');
+        window.location.href = "login.html";
+    }
 
-async function selectPatient(pid, name) {
-    selectedPID = pid;
-    document.getElementById('btnNewCase').style.display = 'block';
-    document.querySelectorAll('.patient-item').forEach(el => el.classList.remove('active'));
-    if(event) event.currentTarget.classList.add('active');
-    loadCases();
-}
+    if (!localStorage.getItem('jwtToken')) { logout(); }
 
-async function loadCases() {
-    const res = await fetch(`http://localhost:5266/api/Case/PatientCases/${selectedPID}`);
-    const cases = await res.json();
-    document.getElementById('caseList').innerHTML = cases.map(c => `
-        <div class="episode-card" id="case-card-${c.id || c.Id}" onclick="viewCase(${c.id || c.Id})">
-            <div style="font-size:0.65rem; color:var(--accent); font-weight:700; text-transform:uppercase;">${c.status || c.Status}</div>
-            <div style="font-weight:600; margin:4px 0;">${c.caseTitle || c.CaseTitle}</div>
-            <div style="font-size:0.75rem; color:var(--text-muted);">${new Date(c.createdAt || c.CreatedAt).toLocaleDateString()}</div>
-        </div>
-    `).join('') || '<p style="text-align:center; padding:20px;">No episodes.</p>';
-}
+    function getAuthHeaders() {
+        return {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem('jwtToken')}`
+        };
+    }
 
-async function viewCase(id) {
-    currentCaseId = id;
-    document.querySelectorAll('.episode-card').forEach(el => el.classList.remove('active'));
-    document.getElementById(`case-card-${id}`)?.classList.add('active');
+    function showAuthError(title, description) {
+        document.getElementById('errorTitle').innerText = title;
+        document.getElementById('errorDescription').innerText = description;
+        document.getElementById('authErrorModal').style.display = 'flex';
+        // Blur #appWrapper only — the modal lives outside it and stays sharp
+        document.getElementById('appWrapper').style.filter = 'blur(8px)';
+        document.getElementById('appWrapper').style.pointerEvents = 'none';
+    }
 
-    try {
-        const res = await fetch(`http://localhost:5266/api/Case/GetCaseDetails/${id}`);
-        const data = await res.json();
+    async function handleAuthError(res) {
+        if (res.status === 401) {
+            showAuthError("Session Expired",
+                "Your authentication token is invalid or has been tampered with. To protect health data, you must sign in again.");
+            return true;
+        }
+        if (res.status === 403) {
+            showAuthError("Access Denied",
+                "Your account does not have permission to manage clinical cases.");
+            return true;
+        }
+        return false;
+    }
 
-        // Support both Camel and Pascal casing safely
-        const vitals = data.vitals || data.Vitals || [];
-        const medications = data.medications || data.Medications || [];
-        const linkedRecs = data.linkedRecords || data.LinkedRecords || [];
+    // ─── STATE ───────────────────────────────────────────────────────────────────
+    let selectedPID = null;
+    let currentCaseId = null;
 
-        // Updated "Timeline" View for Linked Records
-        const recordsHTML = linkedRecs.map(link => {
-            const table = (link.sourceTable || link.SourceTable || "").toLowerCase();
-            const instId = link.instanceId || link.InstanceId;
-            const srcId = link.sourceId || link.SourceId;
-            const summary = link.summary || link.Summary || "No summary provided.";
-            const category = link.category || link.Category || "Record";
-            const isLab = table === 'lab_reports';
-            
-            const dotColor = isLab ? '#10b981' : 'var(--accent)';
-            const icon = isLab ? '🧪 LABORATORY' : '🩻 RADIOLOGY';
-            
-            const viewAction = isLab 
-                ? `viewLabDetails(${srcId})` 
-                : `window.open('viewer.html?instanceId=${instId}', '_blank')`;
+    // ─── INIT ────────────────────────────────────────────────────────────────────
+    async function init() {
+        try {
+            const res = await fetch('http://localhost:5266/api/Clinician/Patients', {
+                headers: getAuthHeaders()
+            });
+            if (await handleAuthError(res)) return;
 
-            return `
-            <div class="evidence-item linked-item" data-source-id="${srcId}">
-                <div class="evidence-dot" style="background: ${dotColor}"></div>
-                <div class="evidence-content">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">${icon}</span>
-                        <button class="btn-small" onclick="${viewAction}">${isLab ? 'View Report ↗' : 'View Image ↗'}</button>
-                    </div>
-                    <div style="padding:10px; background:white; border-radius:8px; border-left:4px solid #cbd5e1;">
-                        <div style="font-size:0.65rem; text-transform:uppercase; color:var(--text-muted); font-weight:700; margin-bottom:4px;">Impression / Summary</div>
-                        <div style="line-height:1.5; font-size:0.9rem; white-space: pre-wrap;">${summary}</div>
+            const data = await res.json();
+            document.getElementById('patientList').innerHTML = data.map(p => `
+                <div class="patient-item"
+                    onclick="selectPatient('${p.patientIdentifier || p.PatientIdentifier}', this)">
+                    <div style="font-weight:600;">${p.patientName || p.name}</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted);">
+                        ${p.patientIdentifier || p.PatientIdentifier}
                     </div>
                 </div>
-            </div>`;
-        }).join('');
+            `).join('');
+        } catch (err) { console.error(err); }
+    }
 
-        document.getElementById('mainView').innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:25px;">
-                <h1 style="margin:0;">${data.caseTitle || data.CaseTitle}</h1>
-                <span class="btn-small" style="background:#fffbeb; color:#92400e;">Status: ${data.status || data.Status}</span>
-            </div>
+    // ─── PATIENT SELECTION ───────────────────────────────────────────────────────
+    function selectPatient(pid, el) {
+        selectedPID = pid;
+        document.getElementById('btnNewCase').style.display = 'block';
+        document.querySelectorAll('.patient-item').forEach(e => e.classList.remove('active'));
+        el.classList.add('active');
+        loadCases();
+    }
 
-            <div class="card" style="border-left: 5px solid var(--accent);">
-                <label style="font-size:0.7rem; font-weight:700; color:var(--accent);">TREATMENT GOAL</label>
-                <h3 style="margin:5px 0;">${data.treatmentGoal || data.TreatmentGoal}</h3>
-            </div>
+    async function loadCases() {
+        try {
+            const res = await fetch(`http://localhost:5266/api/Case/PatientCases/${selectedPID}`, {
+                headers: getAuthHeaders()
+            });
+            if (await handleAuthError(res)) return;
 
-            <div class="grid">
-                <div class="card">
-                    <div class="section-header"><h3>Vitals History</h3><button class="btn-small" onclick="showModal('vitalModal')">+ Record</button></div>
-                    <div class="scroll-box">
-                        <table>
-                            <thead><tr><th>Date</th><th>Temp</th><th>BP</th><th>SpO2</th></tr></thead>
-                            <tbody>
-                                ${vitals.map(v => `<tr><td>${new Date(v.recordedAt || v.RecordedAt).toLocaleDateString()}</td><td>${v.temperature || v.Temperature}°C</td><td>${v.bloodPressure || v.BloodPressure}</td><td style="font-weight:700; color:${(v.spO2 || v.SpO2) < 94 ? '#dc2626' : '#16a34a'}">${v.spO2 || v.SpO2}%</td></tr>`).join('') || '<tr><td colspan="4">No data.</td></tr>'}
-                            </tbody>
-                        </table>
+            const cases = await res.json();
+            document.getElementById('caseList').innerHTML = cases.length
+                ? cases.map(c => `
+                    <div class="episode-card" id="case-card-${c.id || c.Id}"
+                        onclick="viewCase(${c.id || c.Id})">
+                        <div style="font-size:0.65rem; color:var(--accent); font-weight:700; text-transform:uppercase;">
+                            ${c.status || c.Status}
+                        </div>
+                        <div style="font-weight:600; margin:4px 0;">${c.caseTitle || c.CaseTitle}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">
+                            ${new Date(c.createdAt || c.CreatedAt).toLocaleDateString()}
+                        </div>
                     </div>
-                </div>
-                <div class="card">
-                    <div class="section-header"><h3>Medication Plan</h3><button class="btn-small" onclick="showModal('medModal')">+ Add Drug</button></div>
-                    <div class="scroll-box">
-                        ${medications.map(m => `
-                            <div class="med-pill" style="${!(m.isActive ?? m.IsActive) ? 'background:#f1f5f9; opacity:0.8;' : ''}">
-                                <div>
-                                    <strong>${m.drugName || m.DrugName}</strong><br>
-                                    <small>${m.dosage || m.Dosage} • ${m.frequency || m.Frequency}</small><br>
-                                    <small style="color:var(--text-muted);">Started: ${new Date(m.prescribedDate || m.PrescribedDate).toLocaleDateString()}</small>
-                                    ${(m.discontinuedDate || m.DiscontinuedDate) ? `<br><small style="color:#ef4444;">Stopped: ${new Date(m.discontinuedDate || m.DiscontinuedDate).toLocaleDateString()} (${m.discontinuedReason || m.DiscontinuedReason})</small>` : ''}
-                                </div>
-                                <div>${(m.isActive ?? m.IsActive) ? `<button class="btn-small" onclick="discontinueMed(${m.id || m.Id})">Stop</button>` : '<small>STOPPED</small>'}</div>
+                `).join('')
+                : '<p style="text-align:center; padding:20px; color:var(--text-muted); font-size:0.875rem;">No episodes yet.</p>';
+        } catch (err) { console.error(err); }
+    }
+
+    // ─── CASE DETAILS ────────────────────────────────────────────────────────────
+    async function viewCase(id) {
+        currentCaseId = id;
+        document.querySelectorAll('.episode-card').forEach(el => el.classList.remove('active'));
+        document.getElementById(`case-card-${id}`)?.classList.add('active');
+
+        try {
+            const res = await fetch(`http://localhost:5266/api/Case/GetCaseDetails/${id}`, {
+                headers: getAuthHeaders()
+            });
+            if (await handleAuthError(res)) return;
+            if (!res.ok) throw new Error("Failed to load case details");
+
+            const data        = await res.json();
+            const vitals      = data.vitals        || data.Vitals        || [];
+            const medications = data.medications   || data.Medications   || [];
+            const linkedRecs  = data.linkedRecords || data.LinkedRecords || [];
+
+            const recordsHTML = linkedRecs.map(link => {
+                const table    = (link.sourceTable || link.SourceTable || "").toLowerCase();
+                const instId   = link.instanceId  || link.InstanceId;
+                const srcId    = link.sourceId    || link.SourceId;
+                const summary  = link.summary     || link.Summary  || "No summary provided.";
+                const isLab    = table === 'lab_reports';
+                const icon     = isLab ? '🧪 LABORATORY' : '🩻 RADIOLOGY';
+                const dotColor = isLab ? '#10b981' : 'var(--accent)';
+                const viewAct  = isLab
+                    ? `viewLabDetails(${srcId})`
+                    : `window.open('viewer.html?instanceId=${instId}', '_blank')`;
+
+                return `
+                <div class="evidence-item linked-item" data-source-id="${srcId}">
+                    <div class="evidence-dot" style="background:${dotColor}"></div>
+                    <div class="evidence-content">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">${icon}</span>
+                            <button class="btn-small" onclick="${viewAct}">
+                                ${isLab ? 'View Report ↗' : 'View Image ↗'}
+                            </button>
+                        </div>
+                        <div style="padding:10px; background:white; border-radius:8px; border-left:4px solid #cbd5e1;">
+                            <div style="font-size:0.65rem; text-transform:uppercase; color:var(--text-muted); font-weight:700; margin-bottom:4px;">
+                                Impression / Summary
                             </div>
-                        `).join('') || '<p style="text-align:center; padding:20px;">No medications.</p>'}
+                            <div style="line-height:1.5; font-size:0.9rem; white-space:pre-wrap;">${summary}</div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            document.getElementById('mainView').innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                    <h1 style="margin:0; font-size:1.5rem;">${data.caseTitle || data.CaseTitle}</h1>
+                    <span class="btn-small" style="background:#fffbeb; color:#92400e; cursor:default;">
+                        Status: ${data.status || data.Status}
+                    </span>
+                </div>
+
+                <div class="card" style="border-left:5px solid var(--accent);">
+                    <div style="font-size:0.7rem; font-weight:700; color:var(--accent); margin-bottom:4px;">TREATMENT GOAL</div>
+                    <div style="font-size:1rem; font-weight:600;">${data.treatmentGoal || data.TreatmentGoal || '—'}</div>
+                </div>
+
+                <div class="grid">
+                    <div class="card">
+                        <div class="section-header">
+                            <h3 style="margin:0;">Vitals History</h3>
+                            <button class="btn-small" onclick="showModal('vitalModal')">+ Record</button>
+                        </div>
+                        <div class="scroll-box">
+                            <table>
+                                <thead><tr><th>Date</th><th>Temp</th><th>BP</th><th>SpO2</th></tr></thead>
+                                <tbody>
+                                    ${vitals.map(v => `<tr>
+                                        <td>${new Date(v.recordedAt || v.RecordedAt).toLocaleDateString()}</td>
+                                        <td>${v.temperature || v.Temperature}°C</td>
+                                        <td>${v.bloodPressure || v.BloodPressure}</td>
+                                        <td style="font-weight:700; color:${(v.spO2||v.SpO2)<94?'#dc2626':'#16a34a'}">
+                                            ${v.spO2 || v.SpO2}%
+                                        </td>
+                                    </tr>`).join('') ||
+                                    '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">No data.</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="section-header">
+                            <h3 style="margin:0;">Medication Plan</h3>
+                            <button class="btn-small" onclick="showModal('medModal')">+ Add Drug</button>
+                        </div>
+                        <div class="scroll-box">
+                            ${medications.map(m => `
+                                <div class="med-pill" style="${!(m.isActive??m.IsActive)?'background:#f1f5f9;opacity:0.75;':''}">
+                                    <div>
+                                        <strong>${m.drugName||m.DrugName}</strong><br>
+                                        <small>${m.dosage||m.Dosage} • ${m.frequency||m.Frequency}</small><br>
+                                        <small style="color:var(--text-muted);">
+                                            Started: ${new Date(m.prescribedDate||m.PrescribedDate).toLocaleDateString()}
+                                        </small>
+                                        ${(m.discontinuedDate||m.DiscontinuedDate)
+                                            ? `<br><small style="color:#ef4444;">Stopped: ${new Date(m.discontinuedDate||m.DiscontinuedDate).toLocaleDateString()} — ${m.discontinuedReason||m.DiscontinuedReason}</small>`
+                                            : ''}
+                                    </div>
+                                    <div>
+                                        ${(m.isActive??m.IsActive)
+                                            ? `<button class="btn-small" onclick="discontinueMed(${m.id||m.Id})">Stop</button>`
+                                            : '<small style="color:var(--text-muted);">STOPPED</small>'}
+                                    </div>
+                                </div>
+                            `).join('') ||
+                            '<p style="text-align:center;padding:20px;color:var(--text-muted);">No medications.</p>'}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="card">
-                <div class="section-header"><h3>Linked Records & Evidence</h3><button class="btn-small" onclick="openLinkModal()">+ Link New</button></div>
-                <div class="evidence-timeline">
-                    ${recordsHTML || '<p style="color:var(--text-muted); text-align:center; padding:20px;">No records linked.</p>'}
+                <div class="card">
+                    <div class="section-header">
+                        <h3 style="margin:0;">Linked Records & Evidence</h3>
+                        <button class="btn-small" onclick="openLinkModal()">+ Link New</button>
+                    </div>
+                    <div class="evidence-timeline">
+                        ${recordsHTML ||
+                          '<p style="color:var(--text-muted);text-align:center;padding:20px;">No records linked yet.</p>'}
+                    </div>
                 </div>
-            </div>
 
-            <div class="card">
-                <h3>Observations & Progress Notes</h3>
-                <div id="notesHistory" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
-                <textarea id="newNoteText" placeholder="Add clinical note..."></textarea>
-                <button class="btn btn-primary" onclick="submitNote()">Save Note</button>
-            </div>
-        `;
+                <div class="card">
+                    <h3 style="margin-top:0;">Observations & Progress Notes</h3>
+                    <div id="notesHistory" style="max-height:300px;overflow-y:auto;margin-bottom:16px;"></div>
+                    <textarea id="newNoteText" rows="3" placeholder="Add clinical note..." style="resize:vertical;"></textarea>
+                    <button class="btn btn-primary" style="margin-top:8px;" onclick="submitNote()">Save Note</button>
+                </div>
+            `;
 
-        const notes = data.clinicalNotes || data.ClinicalNotes || [];
-        document.getElementById('notesHistory').innerHTML = notes.map(n => `
-            <div style="margin-bottom:10px; padding:15px; background:#f8fafc; border-radius:10px; border:1px solid var(--border);">
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 5px;"><strong>${n.authoredBy || n.AuthoredBy}</strong> • ${new Date(n.createdAt || n.CreatedAt).toLocaleString()}</div>
-                <div style="font-size: 0.95rem; line-height:1.5;">${n.noteText || n.NoteText}</div>
-            </div>
-        `).join('') || '<p>No notes recorded.</p>';
-    } catch (err) { console.error(err); }
-}
+            const notes = data.clinicalNotes || data.ClinicalNotes || [];
+            document.getElementById('notesHistory').innerHTML = notes.map(n => `
+                <div style="margin-bottom:10px;padding:14px;background:#f8fafc;border-radius:10px;border:1px solid var(--border);">
+                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:5px;">
+                        <strong>${n.authoredBy||n.AuthoredBy}</strong> •
+                        ${new Date(n.createdAt||n.CreatedAt).toLocaleString()}
+                    </div>
+                    <div style="font-size:0.9rem;line-height:1.55;">${n.noteText||n.NoteText}</div>
+                </div>
+            `).join('') || '<p style="color:var(--text-muted);">No notes recorded.</p>';
 
-async function viewLabDetails(labId) {
-    try {
-        const res = await fetch(`http://localhost:5266/api/Lab/GetLabReport/${labId}`);
-        const data = await res.json();
-        document.getElementById('labContent').innerHTML = `
-            <div style="text-align:center; border-bottom:2px solid #000; padding-bottom:15px; margin-bottom:20px;"><h2>LABORATORY REPORT</h2></div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; background:#f8fafc; padding:20px; border-radius:8px;">
-                <div><strong>Test:</strong> ${data.testName}</div>
-                <div><strong>Result:</strong> <span style="font-size:1.2rem; font-weight:bold;">${data.resultValue} ${data.unit}</span></div>
-                <div><strong>Date:</strong> ${new Date(data.createdAt).toLocaleDateString()}</div>
-                <div><strong>Ref Range:</strong> ${data.referenceRange}</div>
-            </div>
-            <p style="margin-top:20px;"><strong>Interpretation:</strong><br><span style="color:${data.interpretation.toLowerCase().includes('normal') ? '#166534' : '#991b1b'}; font-weight:bold;">${data.interpretation}</span></p>
-        `;
-        showModal('labReportModal');
-    } catch (err) { alert("Error loading lab."); }
-}
-
-async function openLinkModal() {
-    const existingIds = Array.from(document.querySelectorAll('.linked-item')).map(el => el.dataset.sourceId);
-    const res = await fetch(`http://localhost:5266/api/Case/GetLinkableRecords/${selectedPID}`);
-    const data = await res.json();
-    const container = document.getElementById('linkableRecordsList');
-    const createRow = (item, cat, table) => {
-        const isLinked = existingIds.includes(item.id.toString());
-        return `<div class="patient-item" style="display:flex; justify-content:space-between; align-items:center; background:#fff;">
-            <div><strong>${item.title}</strong><br><small>${new Date(item.date).toLocaleDateString()}</small></div>
-            ${isLinked ? '<small style="font-weight:700;">LINKED</small>' : `<button class="btn-small" onclick="linkRecord(${item.id}, '${cat}', '${table}')">Link</button>`}
-        </div>`;
-    };
-    container.innerHTML = `<h4>Radiology</h4>${data.imaging.map(r => createRow(r, 'Imaging', 'reports')).join('')}<h4>Labs</h4>${data.lab.map(l => createRow(l, 'Lab', 'lab_reports')).join('')}`;
-    showModal('linkRecordModal');
-}
-
-function showModal(id) { document.getElementById(id).style.display = 'flex'; }
-function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
-
-async function linkRecord(sourceId, category, table) {
-    await fetch(`http://localhost:5266/api/Case/LinkRecordToCase`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caseId: currentCaseId, sourceId, category, sourceTable: table }) });
-    closeModals(); viewCase(currentCaseId);
-}
-
-async function submitCase() {
-    const title = document.getElementById('mCaseTitle').value;
-    const goal = document.getElementById('mCaseGoal').value;
-
-    // 1. Validation
-    if (!selectedPID) {
-        alert("Please select a patient from the list first.");
-        return;
-    }
-    if (!title.trim()) {
-        alert("Please enter a Case Title.");
-        return;
+        } catch (err) { console.error(err); }
     }
 
-    // 2. Build the payload
-    // We only send what the user input. The Controller handles the rest.
-    const payload = {
-        patientIdentifier: selectedPID,
-        caseTitle: title,
-        treatmentGoal: goal,
-        longTermAdvice: "" // Optional placeholder
-    };
+    // ─── LAB DETAILS ─────────────────────────────────────────────────────────────
+    async function viewLabDetails(labId) {
+        try {
+            const res = await fetch(`http://localhost:5266/api/Lab/GetLabReport/${labId}`, {
+                headers: getAuthHeaders()
+            });
+            if (await handleAuthError(res)) return;
+            if (!res.ok) throw new Error();
 
-    try {
-        const res = await fetch('http://localhost:5266/api/Case/CreateCase', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            const data = await res.json();
+            document.getElementById('labContent').innerHTML = `
+                <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:15px;margin-bottom:20px;">
+                    <h2 style="margin:0;">LABORATORY REPORT</h2>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;background:#f8fafc;padding:20px;border-radius:8px;">
+                    <div><strong>Test:</strong> ${data.testName}</div>
+                    <div><strong>Result:</strong>
+                        <span style="font-size:1.2rem;font-weight:bold;">${data.resultValue} ${data.unit}</span>
+                    </div>
+                    <div><strong>Date:</strong> ${new Date(data.createdAt).toLocaleDateString()}</div>
+                    <div><strong>Ref Range:</strong> ${data.referenceRange}</div>
+                </div>
+                <p style="margin-top:20px;"><strong>Interpretation:</strong><br>
+                    <span style="color:${data.interpretation.toLowerCase().includes('normal')?'#166534':'#991b1b'};font-weight:bold;">
+                        ${data.interpretation}
+                    </span>
+                </p>
+            `;
+            showModal('labReportModal');
+        } catch (err) { alert("Error loading lab report."); }
+    }
+
+    // ─── LINK RECORDS ────────────────────────────────────────────────────────────
+    async function openLinkModal() {
+        try {
+            const existingIds = Array.from(document.querySelectorAll('.linked-item'))
+                .map(el => el.dataset.sourceId);
+
+            const res = await fetch(
+                `http://localhost:5266/api/Case/GetLinkableRecords/${selectedPID}`,
+                { headers: getAuthHeaders() }
+            );
+            if (await handleAuthError(res)) return;
+
+            const data = await res.json();
+
+            const createRow = (item, cat, table) => {
+                const linked = existingIds.includes(item.id.toString());
+                return `
+                <div class="patient-item"
+                    style="display:flex;justify-content:space-between;align-items:center;background:#fff;">
+                    <div>
+                        <strong>${item.title || '—'}</strong><br>
+                        <small style="color:var(--text-muted);">${new Date(item.date).toLocaleDateString()}</small>
+                    </div>
+                    ${linked
+                        ? '<small style="font-weight:700;color:var(--accent);">✓ LINKED</small>'
+                        : `<button class="btn-small" onclick="linkRecord(${item.id},'${cat}','${table}')">Link</button>`}
+                </div>`;
+            };
+
+            document.getElementById('linkableRecordsList').innerHTML =
+                `<h4 style="margin:10px 0 5px;">Radiology</h4>` +
+                (data.imaging.length
+                    ? data.imaging.map(r => createRow(r, 'Imaging', 'reports')).join('')
+                    : '<p style="color:var(--text-muted);padding:10px 0;">No imaging records.</p>') +
+                `<h4 style="margin:15px 0 5px;">Labs</h4>` +
+                (data.lab.length
+                    ? data.lab.map(l => createRow(l, 'Lab', 'lab_reports')).join('')
+                    : '<p style="color:var(--text-muted);padding:10px 0;">No lab records.</p>');
+
+            showModal('linkRecordModal');
+        } catch (err) { console.error(err); }
+    }
+
+    // ─── MODAL HELPERS ───────────────────────────────────────────────────────────
+    function showModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+
+    // ─── MUTATIONS ───────────────────────────────────────────────────────────────
+    async function linkRecord(sourceId, category, table) {
+        const res = await fetch(`http://localhost:5266/api/Case/LinkRecordToCase`, {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify({ caseId: currentCaseId, sourceId, category, sourceTable: table })
         });
+        if (await handleAuthError(res)) return;
+        closeModals(); viewCase(currentCaseId);
+    }
+
+    async function submitCase() {
+        if (!selectedPID) { alert("Please select a patient first."); return; }
+        const title = document.getElementById('mCaseTitle').value;
+        if (!title.trim()) { alert("Please enter a Case Title."); return; }
+
+        const res = await fetch('http://localhost:5266/api/Case/CreateCase', {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify({
+                patientIdentifier: selectedPID,
+                caseTitle: title,
+                treatmentGoal: document.getElementById('mCaseGoal').value,
+                longTermAdvice: ""
+            })
+        });
+        if (await handleAuthError(res)) return;
 
         if (res.ok) {
-            // Clear fields and refresh
             document.getElementById('mCaseTitle').value = '';
-            document.getElementById('mCaseGoal').value = '';
-            closeModals();
-            loadCases(); // Refresh the middle pane
+            document.getElementById('mCaseGoal').value  = '';
+            closeModals(); loadCases();
         } else {
-            const error = await res.json();
-            console.error("Creation failed:", error);
-            alert("Error creating case. check console.");
+            const err = await res.json();
+            console.error("Creation failed:", err);
+            alert("Error creating case. Check console.");
         }
-    } catch (err) {
-        console.error("Network error:", err);
     }
-}
 
-async function submitVital() {
-    const payload = { caseId: currentCaseId, temperature: parseFloat(document.getElementById('vTemp').value), bloodPressure: document.getElementById('vBP').value, spO2: parseFloat(document.getElementById('vSpO2').value), recordedBy: "Dr. Kebal" };
-    await fetch('http://localhost:5266/api/Case/AddVital', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    closeModals(); viewCase(currentCaseId);
-}
+    async function submitVital() {
+        const res = await fetch('http://localhost:5266/api/Case/AddVital', {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify({
+                caseId: currentCaseId,
+                temperature:   parseFloat(document.getElementById('vTemp').value),
+                bloodPressure: document.getElementById('vBP').value,
+                spO2:          parseFloat(document.getElementById('vSpO2').value),
+                recordedBy: "Nr. Ritisha Dahal",
+            })
+        });
 
-async function submitMedication() {
-    const payload = { caseId: currentCaseId, drugName: document.getElementById('mDrug').value, dosage: document.getElementById('mDosage').value, frequency: document.getElementById('mFreq').value, isActive: true };
-    await fetch('http://localhost:5266/api/Case/AddMedication', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    closeModals(); viewCase(currentCaseId);
-}
+        if (await handleAuthError(res)) return;
+        closeModals(); viewCase(currentCaseId);
+    }
 
-async function submitNote() {
-    const text = document.getElementById('newNoteText').value;
-    if (!text) return;
-    await fetch(`http://localhost:5266/api/Case/AddNote`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caseId: currentCaseId, noteText: text }) });
-    document.getElementById('newNoteText').value = ''; viewCase(currentCaseId);
-}
+    async function submitMedication() {
+        const res = await fetch('http://localhost:5266/api/Case/AddMedication', {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify({
+                caseId:    currentCaseId,
+                drugName:  document.getElementById('mDrug').value,
+                dosage:    document.getElementById('mDosage').value,
+                frequency: document.getElementById('mFreq').value,
+                isActive:  true
+            })
+        });
+        if (await handleAuthError(res)) return;
+        closeModals(); viewCase(currentCaseId);
+    }
 
-async function discontinueMed(medId) {
-    const reason = prompt("Stop reason:");
-    if (!reason) return;
-    await fetch(`http://localhost:5266/api/Case/DiscontinueMedication`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ medId, reason }) });
-    viewCase(currentCaseId);
-}
+    async function submitNote() {
+        const text = document.getElementById('newNoteText').value;
+        if (!text.trim()) return;
+        const res = await fetch(`http://localhost:5266/api/Case/AddNote`, {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify({ caseId: currentCaseId, noteText: text })
+        });
+        if (await handleAuthError(res)) return;
+        document.getElementById('newNoteText').value = '';
+        viewCase(currentCaseId);
+    }
 
-window.onload = init;
+    async function discontinueMed(medId) {
+        const reason = prompt("Reason for stopping:");
+        if (!reason) return;
+        const res = await fetch(`http://localhost:5266/api/Case/DiscontinueMedication`, {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify({ medId, reason })
+        });
+        if (await handleAuthError(res)) return;
+        viewCase(currentCaseId);
+    }
+
+    // ─── BOOT ────────────────────────────────────────────────────────────────────
+    window.onload = init;
 </script>
 </body>
 </html>

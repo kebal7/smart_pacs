@@ -83,7 +83,7 @@ async function submitReport(isFinal) {
     const payload = {
             InstanceId: instanceId,            
             StudyDescription: document.getElementById('studyDescription').value,
-            ClinicalHistory: document.getElementById('clinicalHistory').value,
+            clinicalHistory: document.getElementById('clinicalHistory').value,
             Findings: document.getElementById('findings').value,
             Impression: document.getElementById('impression').value,
             OtherNote: document.getElementById('otherNote').value,

@@ -26,11 +26,9 @@ namespace portals.Models
     public class PatientVital
     {
         public int Id { get; set; }
-
-        // This is what your JS is sending
+        
         public int CaseId { get; set; } 
-
-        // Explicitly tell EF that CaseId is the link to ClinicalCase
+        
         [ForeignKey("CaseId")]
         public ClinicalCase? ClinicalCase { get; set; }
 

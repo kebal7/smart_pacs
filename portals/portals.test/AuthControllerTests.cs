@@ -8,6 +8,7 @@ using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using portals.Controllers;
+using portals.Data;
 using Xunit;
 using SignInResult = Microsoft.AspNetCore.Identity.SignInResult;
 
@@ -20,6 +21,7 @@ namespace Portals.Tests
         private readonly Mock<SignInManager<IdentityUser>> _mockSignInManager;
         private readonly Mock<IConfiguration> _mockConfig;
         private readonly AuthController _controller;
+        private readonly ApplicationDbContext _context;
 
         private const string TestSecretKey = "a_very_long_secret_key_at_least_32_chars_long";
         private const string TestIssuer = "test_pacs_issuer";
@@ -44,7 +46,7 @@ namespace Portals.Tests
             _mockConfig.Setup(c => c["Jwt:ExpiresMinutes"]).Returns("60");
 
             _controller = new AuthController(
-                _mockUserManager.Object, _mockSignInManager.Object, _mockConfig.Object);
+                _mockUserManager.Object, _mockSignInManager.Object, _mockConfig.Object, _context);
         }
 
         // =========================================================================

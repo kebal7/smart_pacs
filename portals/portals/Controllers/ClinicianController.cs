@@ -1,3 +1,8 @@
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using portals.Data;
@@ -5,17 +10,63 @@ using portals.Models;
 
 namespace portals.Controllers;
 
+[Authorize(Roles = "Clinician", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
 [ApiController]
 [Route("api/[controller]")]
 public class ClinicianController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
 
+    private readonly string orthancUrl = "http://localhost:8042";
+    private readonly string orthancUser = "orthanc";
+    private readonly string orthancPassword = "orthanc";
     public ClinicianController(ApplicationDbContext context)
     {
         _context = context;
     }
 
+    
+    private HttpClient CreateClient()
+    {
+        var client = new HttpClient();
+        client.BaseAddress = new Uri(orthancUrl);
+        var byteArray = Encoding.ASCII.GetBytes($"{orthancUser}:{orthancPassword}");
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+        return client;
+    }
+    
+    [HttpGet("DownloadDicom")]
+    public async Task<IActionResult> DownloadDicom(string instanceId)
+    {
+        using var client = CreateClient();
+
+        // 1. Get metadata to build a proper filename
+        var metaRes = await client.GetAsync($"instances/{instanceId}/tags");
+        if (!metaRes.IsSuccessStatusCode)
+            return StatusCode(500, "Failed to fetch DICOM metadata");
+
+        var meta = await metaRes.Content.ReadFromJsonAsync<Dictionary<string, JsonElement>>();
+
+        string patientName = meta?["0010,0010"].GetProperty("Value").GetString() ?? "UnknownPatient";
+        string patientId = meta?["0010,0020"].GetProperty("Value").GetString() ?? instanceId;
+        string studyDate = meta?["0008,0020"].GetProperty("Value").GetString() ?? DateTime.Now.ToString("yyyyMMdd");
+
+        // Clean filename
+        string safePatientName = patientName.Replace(" ", "_");
+        string fileName = $"{patientId}-{safePatientName}-{studyDate}.dcm";
+
+        // 2. Get the actual DICOM bytes
+        var dicomRes = await client.GetAsync($"instances/{instanceId}/file");
+        if (!dicomRes.IsSuccessStatusCode)
+            return StatusCode(500, "Failed to fetch DICOM file");
+
+        var bytes = await dicomRes.Content.ReadAsByteArrayAsync();
+
+        // 3. Return file to browser
+        return File(bytes, "application/dicom", fileName);
+    }
+    
     // GET: api/Clinician/Patients
     // Returns a unique list of patients based on their Identifier
     [HttpGet("Patients")]

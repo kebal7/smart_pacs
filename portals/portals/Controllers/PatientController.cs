@@ -22,8 +22,10 @@ public class PatientController : ControllerBase
 
     // GET all patients
 // GET patients with pagination and search
+
+
     [HttpGet]
-    [HttpGet]
+    //[HttpGet("GetPatients")]
     public IActionResult GetPatients([FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string search = "")
     {
         // don't allow a malicious request
@@ -59,6 +61,7 @@ public class PatientController : ControllerBase
     }
 
     // CREATE patient
+    // [HttpPost("CreatePatient")]
     [HttpPost]
     public IActionResult CreatePatient(CreatePatientDto dto)
     {

@@ -5,10 +5,11 @@
     <title>Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         * {
             box-sizing: border-box;
-            font-family: Arial, Helvetica, sans-serif;
+            font-family: 'DM Sans', Arial, sans-serif;
         }
 
         body {
@@ -17,22 +18,88 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #4e73df, #1cc88a);
+            background: #0f2240;
         }
 
-        .container {
-            background: #ffffff;
-            padding: 30px 25px;
-            width: 100%;
-            max-width: 380px;
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 10%, rgba(14,165,200,0.10) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 80% 90%, rgba(38,71,133,0.30) 0%, transparent 60%),
+                repeating-linear-gradient(135deg, transparent, transparent 40px, rgba(255,255,255,0.015) 40px, rgba(255,255,255,0.015) 41px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .wrapper {
+            position: relative; z-index: 1;
+            width: 100%; max-width: 400px;
+            padding: 16px;
+            animation: fadeUp .5s ease both;
+        }
+
+        @keyframes fadeUp {
+            from { opacity:0; transform:translateY(24px); }
+            to   { opacity:1; transform:translateY(0); }
+        }
+
+        /* ── Logo ── */
+        .logo-area {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .logo-mark {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #0ea5c8, #264785);
             border-radius: 10px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 20px rgba(14,165,200,0.25);
+        }
+
+        .logo-icon svg { width: 22px; height: 22px; }
+
+        .logo-text {
+            font-family: 'DM Serif Display', serif;
+            font-size: 22px;
+            color: #ffffff;
+        }
+
+        .logo-text span { color: #0ea5c8; }
+
+        .logo-area p {
+            font-size: 13px;
+            color: #8ea4bf;
+            font-weight: 300;
+        }
+
+        /* ── Card ── */
+        .container {
+            background: rgba(26, 53, 96, 0.55);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255,255,255,0.10);
+            padding: 36px 36px 30px;
+            width: 100%;
+            border-radius: 18px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.06) inset;
             text-align: center;
         }
 
         h2 {
-            margin-bottom: 20px;
-            color: #333;
+            margin-bottom: 24px;
+            color: #ffffff;
+            font-family: 'DM Serif Display', serif;
+            font-size: 22px;
+            font-weight: 400;
         }
 
         form {
@@ -42,33 +109,43 @@
         }
 
         input {
-            padding: 12px 14px;
-            font-size: 15px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
+            padding: 11px 14px;
+            font-size: 14px;
+            font-family: 'DM Sans', sans-serif;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.05);
+            color: #ffffff;
             outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
         }
 
+        input::placeholder { color: rgba(255,255,255,0.25); }
+
         input:focus {
-            border-color: #4e73df;
-            box-shadow: 0 0 0 2px rgba(78, 115, 223, 0.2);
+            border-color: #0ea5c8;
+            background: rgba(14,165,200,0.07);
+            box-shadow: 0 0 0 3px rgba(14,165,200,0.12);
         }
 
         button.login {
             padding: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            border-radius: 10px;
             border: none;
             cursor: pointer;
-            background: #4e73df;
+            background: linear-gradient(135deg, #0ea5c8, #0882a3);
             color: #fff;
-            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 6px 20px rgba(14,165,200,0.25);
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 4px;
         }
 
         button.login:hover {
-            background: #3b5fc4;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 28px rgba(14,165,200,0.35);
         }
 
         button.login:active {
@@ -76,15 +153,15 @@
         }
 
         .link {
-            margin-top: 15px;
-            font-size: 14px;
-            color: #555;
+            margin-top: 18px;
+            font-size: 13px;
+            color: #8ea4bf;
         }
 
         .link a {
-            color: #4e73df;
+            color: #0ea5c8;
             text-decoration: none;
-            font-weight: bold;
+            font-weight: 500;
         }
 
         .link a:hover {
@@ -93,14 +170,29 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Login</h2>
-        <form id="loginForm">
-            <input type="email" id="loginEmail" placeholder="Email" required>
-            <input type="password" id="loginPassword" placeholder="Password" required>
-            <button type="submit" class="login">Login</button>
-        </form>
-        <p class="link">Don't have an account? <a href="./register.html">Register</a></p>
+    <div class="wrapper">
+        <div class="logo-area">
+            <div class="logo-mark">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"/>
+                        <path d="M8 12h8M12 8v8"/>
+                        <circle cx="12" cy="12" r="3" fill="white" stroke="none" opacity=".4"/>
+                    </svg>
+                </div>
+                <span class="logo-text">Smart<span>PACS</span></span>
+            </div>
+        </div>
+
+        <div class="container">
+            <h2>Welcome Back</h2>
+            <form id="loginForm">
+                <input type="email" id="loginEmail" placeholder="Email" required>
+                <input type="password" id="loginPassword" placeholder="Password" required>
+                <button type="submit" class="login">Login</button>
+            </form>
+            <p class="link">Don't have an account? <a href="./register.html">Register</a></p>
+        </div>
     </div>
 
 <script type="module">
@@ -115,7 +207,6 @@
                 console.log("Auth Result:", result);
 
                 if (result.token) {
-                    // THE FIX: Redirect based on the ROLE returned from server
                     const role = result.role; 
 
                     if (role === "Admin") {
@@ -131,7 +222,7 @@
                         alert("Login success, but role '" + role + "' has no assigned dashboard.");
                     }
                 } else {
-                    // Handle case where server sent 200 but no token (unlikely) or error
+                    // Handle case where server sent 200 but no token
                     errorDiv.innerText = result.error || "Invalid credentials.";
                     errorDiv.style.display = "block";
                 }

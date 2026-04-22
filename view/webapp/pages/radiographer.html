@@ -189,13 +189,67 @@
         .full-width {
             grid-column: span 2;
         }
+
+                header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-logout {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        .btn-logout:hover { background: rgba(255,255,255,0.2); }
+
+        /* Auth Error Modal */
+        #authErrorModal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(4px); z-index: 9999;
+            align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: white; padding: 40px; border-radius: 12px; text-align: center;
+            max-width: 400px; width: 90%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+
     </style>
 </head>
 <body>
 
     <header>
-        <h2>SmartPACS</h2>
-        <h3>Radiographer Portal</h3>
+        <div style="display:flex; align-items:center; gap:18px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:38px; height:38px; background:linear-gradient(135deg,#0ea5c8,#264785); border-radius:9px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 16px rgba(14,165,200,0.25); flex-shrink:0;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"/>
+                        <path d="M8 12h8M12 8v8"/>
+                        <circle cx="12" cy="12" r="3" fill="white" stroke="none" opacity=".4"/>
+                    </svg>
+                </div>
+                <span style="font-family:'DM Serif Display',serif; font-size:20px; color:#fff; letter-spacing:0.3px;">Smart<span style="color:#0ea5c8;">PACS</span></span>
+            </div>
+            <div style="width:1px; height:32px; background:rgba(255,255,255,0.25);"></div>
+            <div>
+                <div style="font-size:0.85rem; font-weight:300; opacity:0.85; letter-spacing:0.05em;">Radiographer Portal</div>
+            </div>
+        </div>
+        <button class="btn-logout" onclick="logout()">
+            <i data-lucide="log-out" size="16"></i> Logout
+        </button>
     </header>
 
     <div class="container">
@@ -282,6 +336,15 @@
 
     </div>
 
+        <div id="authErrorModal">
+        <div class="modal-content">
+            <i data-lucide="shield-alert" size="54" style="color:var(--danger); margin-bottom: 20px;"></i>
+            <h2>Session Expired</h2>
+            <p style="color:var(--text-muted); margin-bottom: 25px;">Your security session has timed out. Please sign in again to upload studies.</p>
+            <button onclick="logout()" class="btn-primary" style="width:100%; padding: 12px;">Return to Login</button>
+        </div>
+    </div>
+    
     <script src="../js/radiographer.js"></script>
 </body>
 </html>

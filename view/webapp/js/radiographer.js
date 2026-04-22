@@ -41,7 +41,12 @@ function setupListeners() {
 
 async function generateNewStudyIds() {
     try {
-        const response = await fetch('http://localhost:5266/api/Radiographer/generate-ids');
+        const response = await fetch('http://localhost:5266/api/Radiographer/generate-ids', {
+            headers: getAuthHeaders() // Pass JWT
+        });
+
+        if (await handleAuthError(response)) return;
+
         if (response.ok) {
             const data = await response.json();
             // REQUIRED: Update both visible Accession and hidden StudyID
@@ -60,7 +65,12 @@ async function lookupPatient(event) {
     if (!patientId) return;
 
     try {
-        const response = await fetch(`http://localhost:5266/api/Radiographer/patient-lookup/${patientId}`);
+        const response = await fetch(`http://localhost:5266/api/Radiographer/patient-lookup/${patientId}`, {
+            headers: getAuthHeaders() // Pass JWT
+        });
+
+        if (await handleAuthError(response)) return;
+
         if (response.ok) {
             const patient = await response.json();
             
@@ -159,8 +169,11 @@ async function uploadToPACS() {
     try {
         const response = await fetch("http://localhost:5266/api/Radiographer/upload-to-pacs", {
             method: "POST",
+            headers: getAuthHeaders(), // Pass JWT
             body: formData
         });
+
+        if (await handleAuthError(response)) return;
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -199,4 +212,28 @@ function clearEverything() {
     updatePreview(null);
     // Refresh IDs so the next patient doesn't get the cleared one
     generateNewStudyIds();
+}
+
+function logout() {
+    localStorage.removeItem('jwtToken');
+    window.location.href = "./login.html";
+}
+
+// Immediate redirect if no token
+if (!localStorage.getItem('jwtToken')) logout();
+
+const getAuthHeaders = () => ({
+    "Authorization": `Bearer ${localStorage.getItem('jwtToken')}`
+});
+
+/**
+ * Checks if the response is 401/403 and shows the security modal
+ */
+async function handleAuthError(res) {
+    if (res.status === 401 || res.status === 403) {
+        document.getElementById('authErrorModal').style.display = 'flex';
+        document.getElementById('mainContent').style.filter = 'blur(8px)';
+        return true;
+    }
+    return false;
 }
